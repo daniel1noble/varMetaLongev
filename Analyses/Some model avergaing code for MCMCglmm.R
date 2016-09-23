@@ -42,7 +42,6 @@
 		return(c(posterior.mode(val), HPDinterval(val)))
 	}	
 
-
 # 2. Model parameters and priors
 #--------------------------------------------------------------------------------------------#
 	
@@ -54,9 +53,8 @@
 	# Specify the priors for MCMCglmm; note that the final random factor of the covariance matrices has been fixed - meta-analysis because it is the known sampling (co)variance matrix.
 	prior<-list(R=list(V=1, nu=0),
 			     G=list(
-			     		G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), 
-					G2=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), 	
-					G3=list(V=1, fix=1)
+			     		G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000),  	
+					G2=list(V=1, fix=1)
 					   )
 				)
 
@@ -84,20 +82,31 @@
 #--------------------------------------------------------------------------------------------#
 	# Fit saturated models and do diagnostic checks. Run three chains.
 	modSat <- list()
+	seed <- round(runif(min = 1,max = 100, 3))
+	
+	# Tests with lnCVR
 	for(i in 1:3){
 		set.seed(seed[i])
-		modSat[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~EffectID + StudyNo, ginverse = list(EffectID = AnivG), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+		modSat[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivGlnCVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
 	
+	# Tests with lnRR
+	for(i in 1:3){
+		set.seed(seed[i])
+		modSat[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivG), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+	}
+	
+	# Tests with lnVr
+	for(i in 1:3){
+		set.seed(seed[i])
+		modSat[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivG), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+	}
+	
+
 # 5. Model averaging of "lnRR", "lnCVR", "lnVr". 
 #---------------------------------------------------------------------------------------------#
-# MLMRs for all other variables; I have written a script to automate this process
-# The script creates a table called Model.Fits which contains the DIC of each model
-# The script also saves each model to be used later
 
-# NOTE: the script will take some time to complete a
-
-# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation)
+# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation); The script also saves each model to be used later
 # NOTE: THIS WILL TAKE A LONG TIME
 for(i in 1:length(Model.Fits[,1])){
 		
@@ -126,7 +135,6 @@ for(i in 1:length(Model.Fits[,1])){
 
 # See the output
 Model.Fits
-
 
 # Calculate the delta DIC values (delta.DIC)
 Model.Fits$lnRR.delta.DIC   <-Model.Fits$lnRR - min(Model.Fits$lnRR)
