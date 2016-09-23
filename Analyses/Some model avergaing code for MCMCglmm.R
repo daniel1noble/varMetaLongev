@@ -91,6 +91,9 @@
 		modSat[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivGlnCVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
 	
+	dir.create(paste0(getwd(),"/output/"))
+	saveRDS(modSat, file = "./output/modSatlnCVR.Rdata")
+
 	modSatlnVR <- list()
 	seed <- round(runif(min = 1,max = 100, 3))
 	
@@ -107,8 +110,17 @@
 		set.seed(seed[i])
 		modSatlnRR[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AinvlnRR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
-	
 
+# 4.1 Checking models
+#---------------------------------------------------------------------------------------------#
+	# Read in model objects. LnCVR
+		modSatlnCVR <- readRDS("./output/modSatlnCVR")
+		chains <- MCMC.chains("./output/modSatlnCVR")
+	# Explore chains separately
+		plot(modSatlnCVR[[2]])
+	# Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
+	MCMC.diag(chains, cols=1:2) #cols refers to VCV matrix.
+	
 # 5. Model averaging of "lnRR", "lnCVR", "lnVr". 
 #---------------------------------------------------------------------------------------------#
 

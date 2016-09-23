@@ -7,6 +7,35 @@
 
 # The script was adapted on 29/04/2016, by Alistair Senior to include a function to simulate meta-analytic datasets for d-type (and lnRR/lnCVR) data.
 
+#### Created by D Noble @ UNSW 23/09/2016
+#Load an MCMC model object of multiple chains. 
+MCMC.chains <- function(path, ginv = "EffectID"){
+    imp <- readRDS(path)
+	            #Import chains
+		 VCV.list <- mcmc.list(lapply(imp, function(x) x$VCV[, -which(ginv == colnames(x$VCV))]))
+		     Sol.list <- mcmc.list(lapply(imp, function(x) x$Sol))
+		         DIC <- plyr::ldply(lapply(imp, function(x) x$DIC))
+		#Combine chains
+		     VCV.mode <- MCMCglmm::posterior.mode(as.mcmc(plyr::ldply(VCV.list)))
+		      VCV.HPD <- coda::HPDinterval(as.mcmc(plyr::ldply(VCV.list)))
+
+		       Sol.mode <- MCMCglmm::posterior.mode(as.mcmc(plyr::ldply(Sol.list)))
+		      Sol.HPD <- coda::HPDinterval(as.mcmc(plyr::ldply(Sol.list)))
+		
+	return(list(solVCVlist = list(VCV = VCV.list, Sol = Sol.list ), solVCVchain = list(VCV = cbind(VCV.mode, VCV.HPD), Sol = cbind( Sol.mode, Sol.HPD)), DIC = DIC))
+}
+
+#### Created by D Noble @ UNSW 23/09/2016
+## MCMC diagnostics function on a model object with 3 chains. 
+MCMC.diag <- function(MCMC.Chains, cols = c(1:3)){
+	gel.fixed <- gelman.diag(MCMC.Chains$solVCVlist$Sol)
+	gel.VCV <- gelman.diag(MCMC.Chains$solVCVlist$VCV[,cols])
+	autocor.fixed <- autocorr.diag(mcmc.list(MCMC.Chains$solVCVlist$Sol))
+	autocor.VCV <- autocorr.diag(mcmc.list(MCMC.Chains$solVCVlist$VCV))
+	heidel.fixed <- heidel.diag(mcmc.list(MCMC.Chains$solVCVlist$Sol))
+	heidel.VCV <- heidel.diag(mcmc.list(MCMC.Chains$solVCVlist$VCV)[,cols])
+  return(list(gel.fixed = gel.fixed, gel.VCV = gel.VCV, autocor.fixed = autocor.fixed, autocor.VCV= autocor.VCV, heidel.fixed = heidel.fixed, heidel.VCV= heidel.VCV))
+}
 
 
 #### Created by A M Senior @ The University of Otago 07/01/2014
