@@ -1,14 +1,14 @@
-#-------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------#
 # Effect of diet restriction on variance in longevity: Analysis
 # of Sinead and Uller data
 # Authors: AM Senior & D Noble
 # Description: Processing data, running some random effects and
 # multi-level (meta-regression) models using lnRR, lnCVR, lnVr
 # and lnSD with lnMean in a random slopes model.
-#---------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------#
 
 # 1. Packages and data processing
-#--------------------------------------------------------#
+#-------------------------------------------------------------------------------#
     # Load packages
     library(metafor)
     library(MCMCglmm)
@@ -43,7 +43,7 @@
     # A list of the unique control ids - useful later
     controls<-unique(data$Control.ID)
 
-# 2. Process data in long format for Random regression with lnSD
+# 2. Process data in long format for random regression with lnSD
 #-------------------------------------------------------------------------------#
 
     # Creating a long format dataframe for the random-slopes model
@@ -70,13 +70,13 @@
     data.long$V.lnMean <-(data.long$SD^2) / (data.long$N * data.long$Mean^2)
 
 # 3. Explore mean-variance relationship in each group
-#-----------------------------------------------------------------#
+#-------------------------------------------------------------------------------#
 
     par(mfrow=c(1, 1))
     plot(data.long$lnMean, data.long$lnSD, col=data.long$Trt)
 
 # 4. Analysis of lnCVR
-#-----------------------------------------------------------------#
+#-------------------------------------------------------------------------------#
 
     # Calculate lnCVRs
     data$lnCVR<-Calc.lnCVR(CMean = data$MeanC, EMean = data$MeanE, CSD=data$SD_C, ESD=data$SD_E, CN=data$NStartControl, EN=data$NStartExp)
@@ -116,191 +116,194 @@
 
     }
 
-# add in variance
-diag(VlnCVR)<-data$V.lnCVR
+    # add in variance
+    diag(VlnCVR)<-data$V.lnCVR
 
-# do REMA and MLMA in metafor. Note: EffectID needed for the V matrix.
-REMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=~1|EffectID, data=data)
-MLMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=~1|StudyNo/EffectID, data=data)
-MLMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=list(~1|StudyNo, ~1|EffectID), data=data) # Notation I would have used.
+    # do REMA and MLMA in metafor. Note: EffectID needed for the V matrix.
+    REMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=~1|EffectID, data=data)
+    MLMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=~1|StudyNo/EffectID, data=data)
+    MLMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=list(~1|StudyNo, ~1|EffectID), data=data) # Notation I would have used.
 
-anova(REMA, MLMA)
+    anova(REMA, MLMA)
 
-summary(REMA)
-summary(MLMA)
+    summary(REMA)
+    summary(MLMA)
 
-# Analyse using MLMA in MCMCglmm
-mat<-solve(VlnCVR)
-AnivGlnCVR<-as(mat, "dgCMatrix")
+    # Analyse using MLMA in MCMCglmm
+    mat<-solve(VlnCVR)
+    AnivGlnCVR<-as(mat, "dgCMatrix")
 
-rownames(AnivGlnCVR) <- colnames(AnivGlnCVR) <- data$EffectID
+    rownames(AnivGlnCVR) <- colnames(AnivGlnCVR) <- data$EffectID
 
 
-prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
-nitts<-1000000
-burn<-500000
-thins<-(nitts - burn) / 1000
+    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
+    nitts<-1000000
+    burn<-500000
+    thins<-(nitts - burn) / 1000
 
-#model<-MCMCglmm(lnCVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivG), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
-#summary(model)
+    #model<-MCMCglmm(lnCVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivG), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+    #summary(model)
 
-# Check some moderators
+    # Check some moderators
 
-MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-summary(MLMR)
+    MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+    summary(MLMR)
 
-# NOTES (apply to below also):
-# 1) expt. stage has three levels in the dataset, but only 2 in the paper
-# 2) not sure about global model approach e.g this has lower AICc - MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + Sex, random=~1|StudyNo/EffectID, data=data)
+    # NOTES (apply to below also):
+    # 1) expt. stage has three levels in the dataset, but only 2 in the paper
+    # 2) not sure about global model approach e.g this has lower AICc - MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + Sex, random=~1|StudyNo/EffectID, data=data)
 
-############ Repeat with lnVR
+# 5. Analysis with lnVR
+#-------------------------------------------------------------------------------#
 
-data$lnVR<-Calc.lnVR(CSD=data$SD_C, ESD=data$SD_E, CN=data$NStartControl, EN=data$NStartExp)
+    data$lnVR<-Calc.lnVR(CSD=data$SD_C, ESD=data$SD_E, CN=data$NStartControl, EN=data$NStartExp)
 
-data$V.lnVR<-Calc.var.lnVR(CN=data$NStartControl, EN=data$NStartExp)
+    data$V.lnVR<-Calc.var.lnVR(CN=data$NStartControl, EN=data$NStartExp)
 
-# Create square matrix
-V<-matrix(0,nrow = dim(data)[1],ncol = dim(data)[1])
+    # Create square matrix
+    VlnVR<-matrix(0,nrow = dim(data)[1],ncol = dim(data)[1])
 
-Data.ID<-seq(1, dim(data)[1], 1)
-rownames(V) <- Data.ID
-colnames(V) <- Data.ID
+    Data.ID<-seq(1, dim(data)[1], 1)
+    rownames(VlnVR) <- Data.ID
+    colnames(VlnVR) <- Data.ID
 
-Shared.Control<-data$Control.ID
-shared_coord <- which(Shared.Control%in%Shared.Control[duplicated(Shared.Control)]==TRUE)
-shared_coord
+    Shared.Control<-data$Control.ID
+    shared_coord <- which(Shared.Control%in%Shared.Control[duplicated(Shared.Control)]==TRUE)
+    shared_coord
 
-# matrix of combinations of coordinates for each experiment with shared control
-combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
-combinations
+    # matrix of combinations of coordinates for each experiment with shared control
+    combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
+    combinations
 
 
-mv.corr<-cor(log(data$MeanC[match(controls, data$Control.ID)]), log(data$SD_C[match(controls, data$Control.ID)]))
+    mv.corr<-cor(log(data$MeanC[match(controls, data$Control.ID)]), log(data$SD_C[match(controls, data$Control.ID)]))
 
-Calc.cov.lnVR<-function(CN){	
-	Cov<-(1 / (2 * (CN - 1))) 
-	return(Cov)
-}
+    Calc.cov.lnVR<-function(CN){	
+    	Cov<-(1 / (2 * (CN - 1))) 
+    	return(Cov)
+    }
 
+    for (i in 1:dim(combinations)[1]){
+      p1 <- combinations[i,1]
+      p2 <- combinations[i,2]
+      p1_p2_cov <- Calc.cov.lnVR(CN = data[p1,"NStartControl"])
+      VlnVR[p1,p2] <- p1_p2_cov
+      VlnVR[p2,p1] <- p1_p2_cov
+    }
 
-for (i in 1:dim(combinations)[1]){
+    diag(VlnVR)<-data$V.lnVR
 
-  p1 <- combinations[i,1]
-  p2 <- combinations[i,2]
-  p1_p2_cov <- Calc.cov.lnVR(CN = data[p1,"NStartControl"])
-  V[p1,p2] <- p1_p2_cov
-  V[p2,p1] <- p1_p2_cov
+    # Analyse using REMA and MLMA in metafor
+    REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
+    MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
 
-}
+    anova(REMA, MLMA)
 
-diag(V)<-data$V.lnVR
+    summary(REMA)
+    summary(MLMA)
 
-# Analyse using REMA and MLMA in metafor
-REMA<-rma.mv(yi = lnVR, V = V, random=~1|EffectID, data=data)
-MLMA<-rma.mv(yi = lnVR, V = V, random=~1|StudyNo/EffectID, data=data)
+    # Analyse using MLMA in MCMCglmm
+    mat<-solve(VlnVR)
+    AnivGVlnVR<-as(mat, "dgCMatrix")
+    rownames(AnivGVlnVR) <-colnames(AnivGVlnVR) <- data$EffectID
+    
 
-anova(REMA, MLMA)
+    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
+    nitts<-1000000
+    burn<-500000
+    thins<-(nitts - burn) / 1000
 
-summary(REMA)
-summary(MLMA)
+    #model<-MCMCglmm(lnVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivG), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
 
-# Analyse using MLMA in MCMCglmm
+    summary(model)
 
-mat<-solve(V)
-AnivG<-as(mat, "dgCMatrix")
+    # Check some moderators
 
-rownames(AnivG) = colnames(AnivG) <- data$EffectID
-data$Map<-row.names(AnivG)
+    MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+    summary(MLMR)
 
-prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
-nitts<-1000000
-burn<-500000
-thins<-(nitts - burn) / 1000
+# 6. Analysis with lnSD
+#-------------------------------------------------------------------------------#
 
-#model<-MCMCglmm(lnVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivG), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+    MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~1|StudyNo/EffectID, data=data.long)
+    summary(MLMR)
 
-summary(model)
+    MLMR.Cor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~Trt|StudyNo/EffectID, data=data.long)
+    summary(MLMR)
 
-# Check some moderators
+    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=diag(2), nu=0.002, alpha.mu=c(0, 0), alpha.V=1000*diag(2))))
+    nitts<-1000000
+    burn<-500000
+    thins<-(nitts - burn) / 1000
 
-MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-summary(MLMR)
+    #model<-MCMCglmm(lnSD ~ Trt + lnMean, random=~us(1 + Trt):StudyNo, mev=data.long$V.lnSD, data=data.long, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
 
-############ lnSD
+    summary(model)
 
-MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~1|StudyNo/EffectID, data=data.long)
-summary(MLMR)
+    plot(model$VCV)
 
-MLMR.Cor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~Trt|StudyNo/EffectID, data=data.long)
-summary(MLMR)
+    #################
 
-prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=diag(2), nu=0.002, alpha.mu=c(0, 0), alpha.V=1000*diag(2))))
-nitts<-1000000
-burn<-500000
-thins<-(nitts - burn) / 1000
+    par(mfrow=c(1,2))
 
-#model<-MCMCglmm(lnSD ~ Trt + lnMean, random=~us(1 + Trt):StudyNo, mev=data.long$V.lnSD, data=data.long, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+    plot(data$lnVR, 1/sqrt(data$V.lnVR))
+    plot(data$lnCVR, 1/sqrt(data$V.lnCVR))
 
-summary(model)
+# 7. Analysis of lnRR
+#-------------------------------------------------------------------------------#
 
-plot(model$VCV)
+    # New thought - if SD is affected then d could be biased so should repeat their averages analysis with lnRR which is less biased by variance
 
-#################
+    data$lnRR<-Calc.lnRR(CMean = data$MeanC, EMean = data$MeanE)
 
-par(mfrow=c(1,2))
+    data$V.lnRR<-Calc.var.lnRR(CN=data$NStartControl, EN=data$NStartExp, CMean = data$MeanC, EMean = data$MeanE, CSD=data$SD_C, ESD=data$SD_E)
 
-plot(data$lnVR, 1/sqrt(data$V.lnVR))
-plot(data$lnCVR, 1/sqrt(data$V.lnCVR))
+    # Create square matrix
+    VlnRR<-matrix(0,nrow = dim(data)[1],ncol = dim(data)[1])
 
-# New thought - if SD is affected then d could be biased so should repeat their averages analysis with lnRR which is less biased by variance
+    Data.ID<-seq(1, dim(data)[1], 1)
+    rownames(VlnRR) <- Data.ID
+    colnames(VlnRR) <- Data.ID
 
-# Repeat with lnRR
+    Shared.Control<-data$Control.ID
+    shared_coord <- which(Shared.Control%in%Shared.Control[duplicated(Shared.Control)]==TRUE)
 
-data$lnRR<-Calc.lnRR(CMean = data$MeanC, EMean = data$MeanE)
+    # matrix of combinations of coordinates for each experiment with shared control
+    combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
 
-data$V.lnRR<-Calc.var.lnRR(CN=data$NStartControl, EN=data$NStartExp, CMean = data$MeanC, EMean = data$MeanE, CSD=data$SD_C, ESD=data$SD_E)
+    Calc.cov.lnRR<-function(CN, CSD, CMean){
+    	Cov<-(CSD^2) / (CN * CMean^2)
+    	return(Cov)
+    }
 
-# Create square matrix
-V<-matrix(0,nrow = dim(data)[1],ncol = dim(data)[1])
+    for (i in 1:dim(combinations)[1]){
 
-Data.ID<-seq(1, dim(data)[1], 1)
-rownames(V) <- Data.ID
-colnames(V) <- Data.ID
+      p1 <- combinations[i,1]
+      p2 <- combinations[i,2]
+      p1_p2_cov <- Calc.cov.lnRR(CN = data[p1,"NStartControl"], CSD = data[p1,"SD_C"], CMean = data[p1,"MeanC"])
+      VlnRR[p1,p2] <- p1_p2_cov
+      VlnRR[p2,p1] <- p1_p2_cov
 
-Shared.Control<-data$Control.ID
-shared_coord <- which(Shared.Control%in%Shared.Control[duplicated(Shared.Control)]==TRUE)
+    }
 
-# matrix of combinations of coordinates for each experiment with shared control
-combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
+    diag(VlnRR)<-data$V.lnRR
 
-Calc.cov.lnRR<-function(CN, CSD, CMean){
-	Cov<-(CSD^2) / (CN * CMean^2)
-	return(Cov)
-}
+    # Solve matrix for MCMCglmm
+    AinvlnRR <- solve(VlnRR)
+    AinvlnRR <- as(AinvlnRR, "dgCMatrix")
+    rownames(AinvlnRR) <- colnames(AinvlnRR) <- data$EffectID
 
-for (i in 1:dim(combinations)[1]){
+    # Analyse using REMA and MLMA in metafor
+    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|EffectID, data=data)
+    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/EffectID, data=data)
 
-  p1 <- combinations[i,1]
-  p2 <- combinations[i,2]
-  p1_p2_cov <- Calc.cov.lnRR(CN = data[p1,"NStartControl"], CSD = data[p1,"SD_C"], CMean = data[p1,"MeanC"])
-  V[p1,p2] <- p1_p2_cov
-  V[p2,p1] <- p1_p2_cov
+    anova(REMA, MLMA)
 
-}
+    summary(REMA)
+    summary(MLMA)
 
-diag(V)<-data$V.lnRR
+    MLMR<-rma.mv(yi = lnRR, V = VlnRR, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+    summary(MLMR)
 
-# Analyse using REMA and MLMA in metafor
-REMA<-rma.mv(yi = lnRR, V = V, random=~1|EffectID, data=data)
-MLMA<-rma.mv(yi = lnRR, V = V, random=~1|StudyNo/EffectID, data=data)
-
-anova(REMA, MLMA)
-
-summary(REMA)
-summary(MLMA)
-
-MLMR<-rma.mv(yi = lnRR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-summary(MLMR)
-
-# Reuslts seem robust to d and lnRR
+    # Results seem robust to d and lnRR
 

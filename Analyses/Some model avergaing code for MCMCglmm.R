@@ -51,7 +51,8 @@
 	thins<-(itts - burn) / 1000
 
 	# Specify the priors for MCMCglmm; note that the final random factor of the covariance matrices has been fixed - meta-analysis because it is the known sampling (co)variance matrix.
-	prior<-list(R=list(V=1, nu=0),
+	prior<-list(B = list(V = 100, nu = 0.02),
+			     R=list(V=1, nu=0),
 			     G=list(
 			     		G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000),  	
 					G2=list(V=1, fix=1)
@@ -90,70 +91,75 @@
 		modSat[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivGlnCVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
 	
-	# Tests with lnRR
+	modSatlnVR <- list()
+	seed <- round(runif(min = 1,max = 100, 3))
+	
+	# Tests with lnVR
 	for(i in 1:3){
 		set.seed(seed[i])
-		modSat[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivG), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+		modSatlnVR[[i]] <- MCMCglmm(lnVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivGVlnVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
 	
+	modSatlnRR <- list()
+	seed <- round(runif(min = 1,max = 100, 3))
 	# Tests with lnVr
 	for(i in 1:3){
 		set.seed(seed[i])
-		modSat[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivG), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+		modSatlnRR[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AinvlnRR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
 	
 
 # 5. Model averaging of "lnRR", "lnCVR", "lnVr". 
 #---------------------------------------------------------------------------------------------#
 
-# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation); The script also saves each model to be used later
-# NOTE: THIS WILL TAKE A LONG TIME
-for(i in 1:length(Model.Fits[,1])){
-		
-		# Run the models for lnRR
-		model.form<-paste(responses[1], Model.Fits[i,1], sep=" ~ ")
-		model<-MCMCglmm(as.formula(model.form), random = ~Article.ID + Consumer.Sp + Data.ID, data=data, ginverse=list(Data.ID = lnRR.AnivG), nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
-		Model.Fits[i,2]<-model$DIC
-		
-		# Save the model with a names that corresponds to the model formula
-	 	name<-paste(responses[1], Model.Fits[i,1], "Rdata", sep=".")
-		save(model, file=name)
-		
-		# Run the models for lnCVR
-		model.form<-paste(responses[2], Model.Fits[i,1], sep=" ~ ")
-		model<-MCMCglmm(as.formula(model.form), random = ~Article.ID + Consumer.Sp + Data.ID, data=data, ginverse=list(Data.ID = lnCVR.AnivG), nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
-		Model.Fits[i,3]<-model$DIC
-		
-		# Save the model with a names that corresponds to the model formula
-		name<-paste(responses[2], Model.Fits[i,1], "Rdata", sep=".")
-		save(model, file=name)	
-		
-		# Print the progress of the script
-		print(i/length(Model.Fits[,1]) * 100)
+	# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation); The script also saves each model to be used later
+	# NOTE: THIS WILL TAKE A LONG TIME
+	for(i in 1:length(Model.Fits[,1])){
+			
+			# Run the models for lnRR
+			model.form<-paste(responses[1], Model.Fits[i,1], sep=" ~ ")
+			model<-MCMCglmm(as.formula(model.form), random = ~Article.ID + Consumer.Sp + Data.ID, data=data, ginverse=list(Data.ID = lnRR.AnivG), nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			Model.Fits[i,2]<-model$DIC
+			
+			# Save the model with a names that corresponds to the model formula
+		 	name<-paste(responses[1], Model.Fits[i,1], "Rdata", sep=".")
+			save(model, file=name)
+			
+			# Run the models for lnCVR
+			model.form<-paste(responses[2], Model.Fits[i,1], sep=" ~ ")
+			model<-MCMCglmm(as.formula(model.form), random = ~Article.ID + Consumer.Sp + Data.ID, data=data, ginverse=list(Data.ID = lnCVR.AnivG), nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			Model.Fits[i,3]<-model$DIC
+			
+			# Save the model with a names that corresponds to the model formula
+			name<-paste(responses[2], Model.Fits[i,1], "Rdata", sep=".")
+			save(model, file=name)	
+			
+			# Print the progress of the script
+			print(i/length(Model.Fits[,1]) * 100)
 
-}
+	}
 
-# See the output
-Model.Fits
+	# See the output
+	Model.Fits
 
-# Calculate the delta DIC values (delta.DIC)
-Model.Fits$lnRR.delta.DIC   <-Model.Fits$lnRR - min(Model.Fits$lnRR)
-Model.Fits$lnCVR.delta.DIC<-Model.Fits$lnCVR - min(Model.Fits$lnCVR)
-Model.Fits$lnVr.delta.DIC    <-Model.Fits$lnVr - min(Model.Fits$lnVr)
+	# Calculate the delta DIC values (delta.DIC)
+	Model.Fits$lnRR.delta.DIC   <-Model.Fits$lnRR - min(Model.Fits$lnRR)
+	Model.Fits$lnCVR.delta.DIC<-Model.Fits$lnCVR - min(Model.Fits$lnCVR)
+	Model.Fits$lnVr.delta.DIC    <-Model.Fits$lnVr - min(Model.Fits$lnVr)
 
-# Select models Based on DIC < 3
-lnRR.Set   <-Model.Fits[which(Model.Fits$lnRR.delta.DIC < 3), c(1,2,5)]
-lnCVR.Set<-Model.Fits[which(Model.Fits$lnCVR.delta.DIC < 3), c(1,3,6)]
-lnVr.Set    <-Model.Fits[which(Model.Fits$lnVr.delta.DIC < 3), c(1,4,7)]
+	# Select models Based on DIC < 3
+	lnRR.Set   <-Model.Fits[which(Model.Fits$lnRR.delta.DIC < 3), c(1,2,5)]
+	lnCVR.Set<-Model.Fits[which(Model.Fits$lnCVR.delta.DIC < 3), c(1,3,6)]
+	lnVr.Set    <-Model.Fits[which(Model.Fits$lnVr.delta.DIC < 3), c(1,4,7)]
 
-# Calculate weights for top model set
-lnRR.Set$wi   <-exp(-0.5 * lnRR.Set$lnRR.delta.DIC) / sum(exp(-0.5 * lnRR.Set$lnRR.delta.DIC))
-lnCVR.Set$wi<-exp(-0.5 * lnCVR.Set$lnCVR.delta.DIC) / sum(exp(-0.5 * lnCVR.Set$lnCVR.delta.DIC))
-lnVr.Set$wi    <-exp(-0.5 * lnVr.Set$lnVr.delta.DIC) / sum(exp(-0.5 * lnVr.Set$lnVr.delta.DIC))
+	# Calculate weights for top model set
+	lnRR.Set$wi   <-exp(-0.5 * lnRR.Set$lnRR.delta.DIC) / sum(exp(-0.5 * lnRR.Set$lnRR.delta.DIC))
+	lnCVR.Set$wi<-exp(-0.5 * lnCVR.Set$lnCVR.delta.DIC) / sum(exp(-0.5 * lnCVR.Set$lnCVR.delta.DIC))
+	lnVr.Set$wi    <-exp(-0.5 * lnVr.Set$lnVr.delta.DIC) / sum(exp(-0.5 * lnVr.Set$lnVr.delta.DIC))
 
-# Sort model set based on DDIC
-lnRR.Set<-lnRR.Set[order(lnRR.Set$lnRR.delta.DIC),]
-lnCVR.Set<-lnCVR.Set[order(lnCVR.Set$lnCVR.delta.DIC),]
+	# Sort model set based on DDIC
+	lnRR.Set<-lnRR.Set[order(lnRR.Set$lnRR.delta.DIC),]
+	lnCVR.Set<-lnCVR.Set[order(lnCVR.Set$lnCVR.delta.DIC),]
 
 # See the top model sets and the model weights
 lnRR.Set
