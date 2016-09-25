@@ -132,8 +132,7 @@
     # Analyse using MLMA in MCMCglmm
     mat<-solve(VlnCVR)
     AnivGlnCVR<-as(mat, "dgCMatrix")
-
-    rownames(AnivGlnCVR) <- colnames(AnivGlnCVR) <- data$EffectID
+    data$Map<-row.names(AnivGlnCVR)
 
 
     prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
@@ -141,13 +140,16 @@
     burn<-500000
     thins<-(nitts - burn) / 1000
 
-    #model<-MCMCglmm(lnCVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivG), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+    #model<-MCMCglmm(lnCVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivGlnCVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
     #summary(model)
 
     # Check some moderators
 
     MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
     summary(MLMR)
+    
+	#model<-MCMCglmm(lnCVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnCVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
+    #summary(model)
 
     # NOTES (apply to below also):
     # 1) expt. stage has three levels in the dataset, but only 2 in the paper
@@ -193,34 +195,31 @@
 
     diag(VlnVR)<-data$V.lnVR
 
-    # Analyse using REMA and MLMA in metafor
-    REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
-    MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
-
-    anova(REMA, MLMA)
-
-    summary(REMA)
-    summary(MLMA)
-
+    
     # Analyse using MLMA in MCMCglmm
     mat<-solve(VlnVR)
-    AnivGVlnVR<-as(mat, "dgCMatrix")
-    rownames(AnivGVlnVR) <-colnames(AnivGVlnVR) <- data$EffectID
+    AnivGlnVR<-as(mat, "dgCMatrix")
+    data$Map<-row.names(AnivGlnVR)
+    data$Map <- as.character(data$Map)
     
+    # Analyse using REMA and MLMA in metafor
+        REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
+        MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
 
-    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
-    nitts<-1000000
-    burn<-500000
-    thins<-(nitts - burn) / 1000
+        anova(REMA, MLMA)
 
-    #model<-MCMCglmm(lnVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivG), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+        summary(REMA)
+        summary(MLMA)
 
-    summary(model)
 
     # Check some moderators
 
     MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
     summary(MLMR)
+    
+    #model<-MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
+    #summary(model)
+
 
 # 6. Analysis with lnSD
 #-------------------------------------------------------------------------------#
@@ -291,11 +290,11 @@
     # Solve matrix for MCMCglmm
     AinvlnRR <- solve(VlnRR)
     AinvlnRR <- as(AinvlnRR, "dgCMatrix")
-    rownames(AinvlnRR) <- colnames(AinvlnRR) <- data$EffectID
-
+    data$Map <-row.names(AinvlnRR)
+	
     # Analyse using REMA and MLMA in metafor
-    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|EffectID, data=data)
-    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/EffectID, data=data)
+    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|Map, data=data)
+    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/Map, data=data)
 
     anova(REMA, MLMA)
 

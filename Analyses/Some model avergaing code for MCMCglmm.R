@@ -51,19 +51,23 @@
 	thins<-(itts - burn) / 1000
 
 	# Specify the priors for MCMCglmm; note that the final random factor of the covariance matrices has been fixed - meta-analysis because it is the known sampling (co)variance matrix.
-	prior<-list(B = list(V = 100, nu = 0.02),
-			     R=list(V=1, nu=0),
-			     G=list(
-			     		G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000),  	
-					G2=list(V=1, fix=1)
-					   )
-				)
+	prior<-list(R=list(V=1, nu=0),
+	                  G=list(
+			G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000),  	
+			G2=list(V=1, fix=1)
+			  )
+	)
+
+	prior2<-list(R=list(V=1, nu=0),
+	                  G=list(G1 = list(V=1, nu=2, alpha.mu=0, alpha.V=1000)  	
+			  )
+	)
 
 # 3. Extract variables create combinations of predictors for model averaging
 #--------------------------------------------------------------------------------------------#
 
 	# Specify the predictors and responses
-	variables <-c("ExptLifeStage", "ManipType", "CatchUp", "Sex", "StageType", "AdultDiet", "Phylum")
+	variables <-c("ExptLifeStage", "ManipType", "CatchUp", "Sex", "AdultDiet", "Phylum")
 	responses<-c("lnRR", "lnCVR", "lnVr")
 
 	# Create the combinations of predictor variables
@@ -82,34 +86,43 @@
 #     to test that iterations specified and, burnin etc is OK.
 #--------------------------------------------------------------------------------------------#
 	# Fit saturated models and do diagnostic checks. Run three chains.
-	modSat <- list()
+	modSatlnCVR <- list()
 	seed <- round(runif(min = 1,max = 100, 3))
 	
 	# Tests with lnCVR
 	for(i in 1:3){
 		set.seed(seed[i])
-		modSat[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivGlnCVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+		modSatlnCVR[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + AdultDiet + Phylum, random = ~StudyNo + Map, ginverse = list(Map = AnivGlnCVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
 	
-	dir.create(paste0(getwd(),"/output/"))
-	saveRDS(modSat, file = "./output/modSatlnCVR.Rdata")
-
-	modSatlnVR <- list()
-	seed <- round(runif(min = 1,max = 100, 3))
+	saveRDS(modSatlnCVR, file = "./output/modSatlnCVR")
 	
 	# Tests with lnVR
+	modSatlnVR <- list()
+	seed <- round(runif(min = 1,max = 100, 3))
+
 	for(i in 1:3){
 		set.seed(seed[i])
-		modSatlnVR[[i]] <- MCMCglmm(lnVR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AnivGVlnVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+		modSatlnVR[[i]] <- MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random = ~StudyNo + Map, ginverse = list(Map = AnivGlnVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
-	
+	 
+	for(i in 1:3){
+		set.seed(seed[i])
+		modSatlnVR[[i]] <- MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random = ~StudyNo, data = data, prior = prior2, nitt = itts, burnin = burn, thin = thins)
+	}
+
+	saveRDS(modSatlnVR, file = "./output/modSatlnVR")
+
+	# Tests with lnRR
 	modSatlnRR <- list()
 	seed <- round(runif(min = 1,max = 100, 3))
-	# Tests with lnVr
+	
 	for(i in 1:3){
 		set.seed(seed[i])
-		modSatlnRR[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + StageType + AdultDiet + Phylum, random = ~StudyNo + EffectID, ginverse = list(EffectID = AinvlnRR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+		modSatlnRR[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + AdultDiet + Phylum, random = ~StudyNo + Map, ginverse = list(Map = AinvlnRR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
 	}
+
+	saveRDS(modSatlnRR, file = "./output/modSatlnRR")
 
 # 4.1 Checking models
 #---------------------------------------------------------------------------------------------#
