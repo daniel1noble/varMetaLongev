@@ -16,32 +16,6 @@
 	library("metafor")
 	library("MCMCglmm")
 
-	# Function to reload in models that will be averaged and return them in a list: these functions are available as loadable functions including comments in a more flexible format from the author
-	loadModels<-function(model.names){
-		
-	# Create a list for models
-		models<-list()
-		
-	# loop through the model names, loading the model and storing it in the list called models
-		for(i in 1:length(model.names)){	
-			name<-paste(model.names[i], ".Rdata", sep="")
-			load(name)
-			models[[i]]<-model
-		}
-		return(models)
-	}
-
-	# A function to average one of the parameters in the model set using an equivalent of the zero method. The function takes a paramter name, a list of models for avergaing and a vector of weights for each model 
-	averageParameter<-function(parameter, weight, models){
-		val<-0
-		for(i in 1:length(models)){
-			if(is.na(models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)][1]) == F){
-			val<-val + models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)] * weight[i]
-			}
-		}
-		return(c(posterior.mode(val), HPDinterval(val)))
-	}	
-
 # 2. Model parameters and priors
 #--------------------------------------------------------------------------------------------#
 	
@@ -128,12 +102,21 @@
 #---------------------------------------------------------------------------------------------#
 	# Read in model objects. LnCVR
 		modSatlnCVR <- readRDS("./output/modSatlnCVR")
-		chains <- MCMC.chains("./output/modSatlnCVR")
+		chainsCVR <- MCMC.chains("./output/modSatlnCVR")
 	# Explore chains separately
 		plot(modSatlnCVR[[2]])
 	# Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
-	MCMC.diag(chains, cols=1:2) #cols refers to VCV matrix.
+	MCMC.diag(chainsCVR, cols=1:2) #cols refers to VCV matrix.
 	
+
+	# Read in model objects. LnRR
+		modSatlnRR <- readRDS("./output/modSatlnRR")
+		chainsRR <- MCMC.chains("./output/modSatlnRR")
+	# Explore chains separately
+		plot(modSatlnRR[[3]])
+	# Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
+		MCMC.diag(chainsRR, cols=1:2) #cols refers to VCV matrix.
+
 # 5. Model averaging of "lnRR", "lnCVR", "lnVr". 
 #---------------------------------------------------------------------------------------------#
 

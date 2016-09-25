@@ -100,11 +100,6 @@
     # Get correlation for control data alone without repeats
     mv.corr<-cor(log(data$MeanC[match(controls, data$Control.ID)]), log(data$SD_C[match(controls, data$Control.ID)]))
 
-    # Function for getting covariance. @Noble - This is interesting. Not what I had expected to get the covariance for shared control. You'll need to explain this to me to clear up my understanding. I sort of expected this to be derived from the variance of the two VlnCV values for the effect sizes, but this is basically the variance of the control only. (eqn 12 - control).
-    Calc.cov.lnCVR<-function(CMean, CSD, CN, mvcorr){
-    	Cov<- CSD^2 / (CN * (CMean^2)) + 1 / (2 * (CN - 1)) - 2 * mvcorr * sqrt((CSD^2 / (CN * (CMean^2))) * (1 / (2 * (CN - 1)))) 
-    	return(Cov)
-    }
 
     # Calculate covariance values between lnCVR values at the positions in shared_list and place them on the matrix
     for (i in 1:dim(combinations)[1]){
@@ -180,11 +175,7 @@
 
     mv.corr<-cor(log(data$MeanC[match(controls, data$Control.ID)]), log(data$SD_C[match(controls, data$Control.ID)]))
 
-    Calc.cov.lnVR<-function(CN){	
-    	Cov<-(1 / (2 * (CN - 1))) 
-    	return(Cov)
-    }
-
+    
     for (i in 1:dim(combinations)[1]){
       p1 <- combinations[i,1]
       p2 <- combinations[i,2]
@@ -269,11 +260,6 @@
 
     # matrix of combinations of coordinates for each experiment with shared control
     combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
-
-    Calc.cov.lnRR<-function(CN, CSD, CMean){
-    	Cov<-(CSD^2) / (CN * CMean^2)
-    	return(Cov)
-    }
 
     for (i in 1:dim(combinations)[1]){
 

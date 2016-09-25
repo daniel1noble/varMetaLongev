@@ -7,6 +7,51 @@
 
 # The script was adapted on 29/04/2016, by Alistair Senior to include a function to simulate meta-analytic datasets for d-type (and lnRR/lnCVR) data.
 
+# Function to reload in models that will be averaged and return them in a list: these functions are available as loadable functions including comments in a more flexible format from the author
+	loadModels<-function(model.names){
+		
+	# Create a list for models
+		models<-list()
+		
+	# loop through the model names, loading the model and storing it in the list called models
+		for(i in 1:length(model.names)){	
+			name<-paste(model.names[i], ".Rdata", sep="")
+			load(name)
+			models[[i]]<-model
+		}
+		return(models)
+	}
+
+	 # Functions for getting covariance for various effect sizes. @Noble - This is interesting. Not what I had expected to get the covariance for shared control. You'll need to explain this to me to clear up my understanding. I sort of expected this to be derived from the variance of the two VlnCV values for the effect sizes, but this is basically the variance of the control only. (eqn 12 - control).
+	    Calc.cov.lnCVR<-function(CMean, CSD, CN, mvcorr){
+	    	Cov<- CSD^2 / (CN * (CMean^2)) + 1 / (2 * (CN - 1)) - 2 * mvcorr * sqrt((CSD^2 / (CN * (CMean^2))) * (1 / (2 * (CN - 1)))) 
+	    	return(Cov)
+	    }
+
+
+	Calc.cov.lnVR<-function(CN){	
+	    	Cov<-(1 / (2 * (CN - 1))) 
+	    	return(Cov)
+	    }
+
+
+	    Calc.cov.lnRR<-function(CN, CSD, CMean){
+	    	Cov<-(CSD^2) / (CN * CMean^2)
+	    	return(Cov)
+	    }
+	# A function to average one of the parameters in the model set using an equivalent of the zero method. The function takes a paramter name, a list of models for avergaing and a vector of weights for each model 
+	averageParameter<-function(parameter, weight, models){
+		val<-0
+		for(i in 1:length(models)){
+			if(is.na(models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)][1]) == F){
+			val<-val + models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)] * weight[i]
+			}
+		}
+		return(c(posterior.mode(val), HPDinterval(val)))
+	}	
+
+
+
 #### Created by D Noble @ UNSW 23/09/2016
 #Load an MCMC model object of multiple chains. 
 MCMC.chains <- function(path, ginv = "EffectID"){
