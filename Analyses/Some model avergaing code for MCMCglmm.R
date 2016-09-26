@@ -17,7 +17,7 @@
 	library("MCMCglmm")
 
 	# Load the list of model objects
-	datObjects <- readRDS("./output/datObjects")
+	datObjects <- readRDS("./data/datObjects")
 
 # 2. Model parameters and priors
 #--------------------------------------------------------------------------------------------#
@@ -63,7 +63,7 @@
 			
 			# Run the models for lnRR
 			model.form<-paste(responses[1], Model.Fits[i,1], sep=" ~ ")
-			model<-MCMCglmm(as.formula(model.form),  random = ~StudyNo + Map, ginverse = list(Map = AinvlnRR), data=data, nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			model<-MCMCglmm(as.formula(model.form),  random = ~StudyNo + Map, ginverse = list(Map = datObjects$AinvlnRR), data=datObjects$data, nitt=itts, burnin=burn, thin=thins, verbose=FALSE, pr=TRUE, prior=prior)
 			Model.Fits[i,2]<-model$DIC
 			
 			# Save the model with a names that corresponds to the model formula
@@ -72,12 +72,12 @@
 			
 			# Run the models for lnCVR
 			model.form<-paste(responses[2], Model.Fits[i,1], sep=" ~ ")
-			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = AnivGlnCVR), data = data, nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = datObjects$AnivGlnCVR), data = datObjects$data, nitt=itts, burnin=burn, thin=thins, verbose=FALSE, pr=TRUE, prior=prior)
 			Model.Fits[i,3]<-model$DIC
 			
 			# Run models for lnVR
 			model.form<-paste(responses[3], Model.Fits[i,1], sep=" ~ ")
-			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = AnivGlnVR), data = data, nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = datObjects$AnivGlnVR), data = datObjects$data, nitt=itts, burnin=burn, thin=thins, verbose=FALSE, pr=TRUE, prior=prior)
 			Model.Fits[i,4]<-model$DIC
 
 			# Save the model with a names that corresponds to the model formula

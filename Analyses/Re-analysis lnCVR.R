@@ -1,6 +1,5 @@
 #--------------------------------------------------------------------------------------#
-# Effect of diet restriction on variance in longevity: Analysis
-# of Sinead and Uller data
+# Effect of diet restriction on variance in longevity
 # Authors: AM Senior & D Noble
 # Description: Processing data and create (co)variance matrices. Check
 # priors, mixing and convergence of chains.
