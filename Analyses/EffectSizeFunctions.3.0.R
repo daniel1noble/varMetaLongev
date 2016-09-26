@@ -148,8 +148,6 @@ Calc.var.lnRR<-function(CMean, CN, CSD, EMean, EN, ESD){
 }
 
 
-
-
 #### Created by A M Senior @ the University of Otago NZ 03/01/2014
 
 #### Below are funcitons for calculating effect sizes for meta-analysis of variance - (modified on 16/05/2016 to account for repeated control data in calculation of correlation) 

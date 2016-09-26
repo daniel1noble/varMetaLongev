@@ -1,14 +1,16 @@
-#--------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------#
 # Effect of diet restriction on variance in longevity: Analysis
 # of Sinead and Uller data
 # Authors: AM Senior & D Noble
-# Description: Processing data, running some random effects and
-# multi-level (meta-regression) models using lnRR, lnCVR, lnVr
-# and lnSD with lnMean in a random slopes model.
-#-------------------------------------------------------------------------------#
+# Description: Processing data and create (co)variance matrices. Check
+# priors, mixing and convergence of chains.
+#--------------------------------------------------------------------------------------#
 
 # 1. Packages and data processing
-#-------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------#
+    # Clear working space
+    rm(list = ls())
+
     # Load packages
     library(metafor)
     library(MCMCglmm)
@@ -44,8 +46,7 @@
     controls<-unique(data$Control.ID)
 
 # 2. Process data in long format for random regression with lnSD
-#-------------------------------------------------------------------------------#
-
+#--------------------------------------------------------------------------------------#
     # Creating a long format dataframe for the random-slopes model
     data.C<-data[,-c(16, 18, 20)]  
     data.C$Trt<-"C"
@@ -70,13 +71,12 @@
     data.long$V.lnMean <-(data.long$SD^2) / (data.long$N * data.long$Mean^2)
 
 # 3. Explore mean-variance relationship in each group
-#-------------------------------------------------------------------------------#
-
+#--------------------------------------------------------------------------------------#
     par(mfrow=c(1, 1))
     plot(data.long$lnMean, data.long$lnSD, col=data.long$Trt)
 
-# 4. Analysis of lnCVR
-#-------------------------------------------------------------------------------#
+# 4. Create lnCVR matrix
+#--------------------------------------------------------------------------------------#
 
     # Calculate lnCVRs
     data$lnCVR<-Calc.lnCVR(CMean = data$MeanC, EMean = data$MeanE, CSD=data$SD_C, ESD=data$SD_E, CN=data$NStartControl, EN=data$NStartExp)
@@ -94,64 +94,29 @@
     shared_coord <- which(Shared.Control%in%Shared.Control[duplicated(Shared.Control)]==TRUE)
 
     # matrix of combinations of coordinates for each experiment with shared control
-    combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
-    combinations
+        combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
 
     # Get correlation for control data alone without repeats
     mv.corr<-cor(log(data$MeanC[match(controls, data$Control.ID)]), log(data$SD_C[match(controls, data$Control.ID)]))
 
-
     # Calculate covariance values between lnCVR values at the positions in shared_list and place them on the matrix
-    for (i in 1:dim(combinations)[1]){
-      p1 <- combinations[i,1]
-      p2 <- combinations[i,2]
-      p1_p2_cov <- Calc.cov.lnCVR(CMean = data[p1,"MeanC"], CSD = data[p1,"SD_C"], CN = data[p1,"NStartControl"], mvcorr = mv.corr)
-      VlnCVR[p1,p2] <- p1_p2_cov
-      VlnCVR[p2,p1] <- p1_p2_cov
+        for (i in 1:dim(combinations)[1]){
+          p1 <- combinations[i,1]
+          p2 <- combinations[i,2]
+          p1_p2_cov <- Calc.cov.lnCVR(CMean = data[p1,"MeanC"], CSD = data[p1,"SD_C"], CN = data[p1,"NStartControl"], mvcorr = mv.corr)
+          VlnCVR[p1,p2] <- p1_p2_cov
+          VlnCVR[p2,p1] <- p1_p2_cov
 
-    }
+        }
 
-    # add in variance
-    diag(VlnCVR)<-data$V.lnCVR
+    # Add in variance
+        diag(VlnCVR)<-data$V.lnCVR
 
-    # do REMA and MLMA in metafor. Note: EffectID needed for the V matrix.
-    REMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=~1|EffectID, data=data)
-    MLMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=~1|StudyNo/EffectID, data=data)
-    MLMA<-rma.mv(yi = lnCVR, V = VlnCVR, random=list(~1|StudyNo, ~1|EffectID), data=data) # Notation I would have used.
-
-    anova(REMA, MLMA)
-
-    summary(REMA)
-    summary(MLMA)
-
-    # Analyse using MLMA in MCMCglmm
-    mat<-solve(VlnCVR)
-    AnivGlnCVR<-as(mat, "dgCMatrix")
-    data$Map<-row.names(AnivGlnCVR)
-
-
-    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000), G2=list(V=1, fix=1)))
-    nitts<-1000000
-    burn<-500000
-    thins<-(nitts - burn) / 1000
-
-    #model<-MCMCglmm(lnCVR ~ 1, random=~StudyNo + Map, ginverse=list(Map = AnivGlnCVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
-    #summary(model)
-
-    # Check some moderators
-
-    MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-    summary(MLMR)
+   # Solve matrix for MCMCglmm
+        AnivGlnCVR <- as(solve(VlnCVR), "dgCMatrix")
     
-	#model<-MCMCglmm(lnCVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnCVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
-    #summary(model)
-
-    # NOTES (apply to below also):
-    # 1) expt. stage has three levels in the dataset, but only 2 in the paper
-    # 2) not sure about global model approach e.g this has lower AICc - MLMR<-rma.mv(yi = lnCVR, V = V, mods=~AdultDiet + ExptLifeStage + Sex, random=~1|StudyNo/EffectID, data=data)
-
-# 5. Analysis with lnVR
-#-------------------------------------------------------------------------------#
+# 5. Create lnVR matrix
+#--------------------------------------------------------------------------------------#
 
     data$lnVR<-Calc.lnVR(CSD=data$SD_C, ESD=data$SD_E, CN=data$NStartControl, EN=data$NStartExp)
 
@@ -170,12 +135,11 @@
 
     # matrix of combinations of coordinates for each experiment with shared control
     combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
-    combinations
 
-
+    # Correlation between mean and sd
     mv.corr<-cor(log(data$MeanC[match(controls, data$Control.ID)]), log(data$SD_C[match(controls, data$Control.ID)]))
 
-    
+    # Use combinations of shared controls to calculated the covariance
     for (i in 1:dim(combinations)[1]){
       p1 <- combinations[i,1]
       p2 <- combinations[i,2]
@@ -184,63 +148,14 @@
       VlnVR[p2,p1] <- p1_p2_cov
     }
 
+    # Add variance along diagonal
     diag(VlnVR)<-data$V.lnVR
 
-    
     # Analyse using MLMA in MCMCglmm
-    mat<-solve(VlnVR)
-    AnivGlnVR<-as(mat, "dgCMatrix")
-    data$Map<-row.names(AnivGlnVR)
-    data$Map <- as.character(data$Map)
+    AnivGlnVR<-as(solve(VlnVR), "dgCMatrix")
     
-    # Analyse using REMA and MLMA in metafor
-        REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
-        MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
-
-        anova(REMA, MLMA)
-
-        summary(REMA)
-        summary(MLMA)
-
-
-    # Check some moderators
-
-    MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-    summary(MLMR)
-    
-    #model<-MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
-    #summary(model)
-
-
-# 6. Analysis with lnSD
-#-------------------------------------------------------------------------------#
-
-    MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~1|StudyNo/EffectID, data=data.long)
-    summary(MLMR)
-
-    MLMR.Cor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~Trt|StudyNo/EffectID, data=data.long)
-    summary(MLMR)
-
-    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=diag(2), nu=0.002, alpha.mu=c(0, 0), alpha.V=1000*diag(2))))
-    nitts<-1000000
-    burn<-500000
-    thins<-(nitts - burn) / 1000
-
-    #model<-MCMCglmm(lnSD ~ Trt + lnMean, random=~us(1 + Trt):StudyNo, mev=data.long$V.lnSD, data=data.long, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
-
-    summary(model)
-
-    plot(model$VCV)
-
-    #################
-
-    par(mfrow=c(1,2))
-
-    plot(data$lnVR, 1/sqrt(data$V.lnVR))
-    plot(data$lnCVR, 1/sqrt(data$V.lnCVR))
-
-# 7. Analysis of lnRR
-#-------------------------------------------------------------------------------#
+# 6. Create lnRR matrix
+#--------------------------------------------------------------------------------------#
 
     # New thought - if SD is affected then d could be biased so should repeat their averages analysis with lnRR which is less biased by variance
 
@@ -260,35 +175,107 @@
 
     # matrix of combinations of coordinates for each experiment with shared control
     combinations <- do.call("rbind", tapply(shared_coord, data[shared_coord,"Control.ID"], function(x) t(combn(x,2))))
-
+    
+    # Use combinations of shared controls to calculated the covariance
     for (i in 1:dim(combinations)[1]){
-
       p1 <- combinations[i,1]
       p2 <- combinations[i,2]
       p1_p2_cov <- Calc.cov.lnRR(CN = data[p1,"NStartControl"], CSD = data[p1,"SD_C"], CMean = data[p1,"MeanC"])
       VlnRR[p1,p2] <- p1_p2_cov
       VlnRR[p2,p1] <- p1_p2_cov
-
     }
 
+    # Add in variance for lnRR along diagonal
     diag(VlnRR)<-data$V.lnRR
 
     # Solve matrix for MCMCglmm
-    AinvlnRR <- solve(VlnRR)
-    AinvlnRR <- as(AinvlnRR, "dgCMatrix")
+    AinvlnRR <- as(solve(VlnRR), "dgCMatrix")
     data$Map <-row.names(AinvlnRR)
-	
-    # Analyse using REMA and MLMA in metafor
-    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|Map, data=data)
-    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/Map, data=data)
+    
+# 7. Save all relevant objects into a single list object for future use
+#--------------------------------------------------------------------------------------#
 
-    anova(REMA, MLMA)
+    datObjects <- list(data = data, data.long = data.long, AnivGlnCVR=AnivGlnCVR, AnivGlnVR=AnivGlnVR, AinvlnRR=AinvlnRR)
+    saveRDS(datObjects, file = "./data/datObjects")
 
-    summary(REMA)
-    summary(MLMA)
+# 8. Model parameters and priors. Test that they are sufficient
+#--------------------------------------------------------------------------------------#
+    
+    # Specify the number of iterations, burnin period and thinning interval for MCMCglmm
+    itts  <-5000000
+    burn<-3000000
+    thins<-(itts - burn) / 1000
 
-    MLMR<-rma.mv(yi = lnRR, V = VlnRR, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-    summary(MLMR)
+    # Specify the priors for MCMCglmm; note that the final random factor of the covariance matrices has been fixed - meta-analysis because it is the known sampling (co)variance matrix.
+    prior<-list(R=list(V=1, nu=0.002),
+                      G=list(
+            G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000),   
+            G2=list(V=1, fix=1)
+              )
+    )
 
-    # Results seem robust to d and lnRR
+# 9. Check model diagnostics of full model prior to model averaging
+#     to test that iterations specified and, burn in etc is OK.
+#--------------------------------------------------------------------------------------#
+    # Fit saturated models and do diagnostic checks. Run three chains.
+    modSatlnCVR <- list()
+    seed <- round(runif(min = 1,max = 100, 3))
+    
+    # Tests with lnCVR
+    for(i in 1:3){
+        set.seed(seed[i])
+        modSatlnCVR[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + AdultDiet + Phylum, random = ~StudyNo + Map, ginverse = list(Map = datObjects$AnivGlnCVR), data = datObjects$data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+    }
+    
+    saveRDS(modSatlnCVR, file = "./output/modSatlnCVR")
+    
+    # Tests with lnVR
+    modSatlnVR <- list()
+    seed <- round(runif(min = 1,max = 100, 3))
+
+    for(i in 1:3){
+        set.seed(seed[i])
+        modSatlnVR[[i]] <- MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random = ~StudyNo + Map, ginverse = list(Map = datObjects$AnivGlnVR), data = datObjects$data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+    }
+     
+    saveRDS(modSatlnVR, file = "./output/modSatlnVR")
+
+    # Tests with lnRR
+    modSatlnRR <- list()
+    seed <- round(runif(min = 1,max = 100, 3))
+    
+    for(i in 1:3){
+        set.seed(seed[i])
+        modSatlnRR[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + AdultDiet + Phylum, random = ~StudyNo + Map, ginverse = list(Map = datObjects$AinvlnRR), data = datObjects$data, prior = prior, nitt = itts, burnin = burn, thin = thins)
+    }
+
+    saveRDS(modSatlnRR, file = "./output/modSatlnRR")
+
+# 10. Checking models prior to model averaging
+#--------------------------------------------------------------------------------------#
+    # Read in model objects. LnCVR
+        modSatlnCVR <- readRDS("./output/modSatlnCVR")
+        chainsCVR      <- MCMC.chains("./output/modSatlnCVR", ginv = "Map")
+    # Explore chains separately
+        plot(modSatlnCVR[[2]])
+    # Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
+        MCMC.diag(chainsCVR, cols=1:2) #cols refers to VCV matrix.
+    
+    # Read in model objects. LnCVR
+        modSatlnVR <- readRDS("./output/modSatlnVR")
+        chainsVR      <- MCMC.chains(path = "./output/modSatlnVR", ginv = "Map")
+    # Explore chains separately
+        plot(modSatlnVR[[2]])
+    # Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
+        MCMC.diag(chainsVR, cols=1:2) #cols refers to VCV matrix.
+
+    # Read in model objects. LnRR
+        modSatlnRR <- readRDS("./output/modSatlnRR")
+        chainsRR      <- MCMC.chains("./output/modSatlnRR", ginv = "Map")
+    # Explore chains separately
+        plot(modSatlnRR[[3]])
+    # Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
+        MCMC.diag(chainsRR, cols=1:2) #cols refers to VCV matrix.
+
+
 

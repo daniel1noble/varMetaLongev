@@ -16,6 +16,9 @@
 	library("metafor")
 	library("MCMCglmm")
 
+	# Load the list of model objects
+	datObjects <- readRDS("./output/datObjects")
+
 # 2. Model parameters and priors
 #--------------------------------------------------------------------------------------------#
 	
@@ -25,15 +28,10 @@
 	thins<-(itts - burn) / 1000
 
 	# Specify the priors for MCMCglmm; note that the final random factor of the covariance matrices has been fixed - meta-analysis because it is the known sampling (co)variance matrix.
-	prior<-list(R=list(V=1, nu=0),
+	prior<-list(R=list(V=1, nu=0.002),
 	                  G=list(
 			G1=list(V=1, nu=0.002, alpha.mu=0, alpha.V=1000),  	
 			G2=list(V=1, fix=1)
-			  )
-	)
-
-	prior2<-list(R=list(V=1, nu=0),
-	                  G=list(G1 = list(V=1, nu=2, alpha.mu=0, alpha.V=1000)  	
 			  )
 	)
 
@@ -42,7 +40,7 @@
 
 	# Specify the predictors and responses
 	variables <-c("ExptLifeStage", "ManipType", "CatchUp", "Sex", "AdultDiet", "Phylum")
-	responses<-c("lnRR", "lnCVR", "lnVr")
+	responses<-c("lnRR", "lnCVR", "lnVR")
 
 	# Create the combinations of predictor variables
 	models<-"1"
@@ -56,68 +54,7 @@
 	names(Model.Fits) <-c("Model", responses)
 	Model.Fits[,1]        <-models
 
-# 4. Check model diagnostics of full model prior to model averaging
-#     to test that iterations specified and, burnin etc is OK.
-#--------------------------------------------------------------------------------------------#
-	# Fit saturated models and do diagnostic checks. Run three chains.
-	modSatlnCVR <- list()
-	seed <- round(runif(min = 1,max = 100, 3))
-	
-	# Tests with lnCVR
-	for(i in 1:3){
-		set.seed(seed[i])
-		modSatlnCVR[[i]] <- MCMCglmm(lnCVR ~ ExptLifeStage + ManipType + CatchUp + Sex + AdultDiet + Phylum, random = ~StudyNo + Map, ginverse = list(Map = AnivGlnCVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
-	}
-	
-	saveRDS(modSatlnCVR, file = "./output/modSatlnCVR")
-	
-	# Tests with lnVR
-	modSatlnVR <- list()
-	seed <- round(runif(min = 1,max = 100, 3))
-
-	for(i in 1:3){
-		set.seed(seed[i])
-		modSatlnVR[[i]] <- MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random = ~StudyNo + Map, ginverse = list(Map = AnivGlnVR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
-	}
-	 
-	for(i in 1:3){
-		set.seed(seed[i])
-		modSatlnVR[[i]] <- MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random = ~StudyNo, data = data, prior = prior2, nitt = itts, burnin = burn, thin = thins)
-	}
-
-	saveRDS(modSatlnVR, file = "./output/modSatlnVR")
-
-	# Tests with lnRR
-	modSatlnRR <- list()
-	seed <- round(runif(min = 1,max = 100, 3))
-	
-	for(i in 1:3){
-		set.seed(seed[i])
-		modSatlnRR[[i]] <- MCMCglmm(lnRR ~ ExptLifeStage + ManipType + CatchUp + Sex + AdultDiet + Phylum, random = ~StudyNo + Map, ginverse = list(Map = AinvlnRR), data = data, prior = prior, nitt = itts, burnin = burn, thin = thins)
-	}
-
-	saveRDS(modSatlnRR, file = "./output/modSatlnRR")
-
-# 4.1 Checking models
-#---------------------------------------------------------------------------------------------#
-	# Read in model objects. LnCVR
-		modSatlnCVR <- readRDS("./output/modSatlnCVR")
-		chainsCVR <- MCMC.chains("./output/modSatlnCVR")
-	# Explore chains separately
-		plot(modSatlnCVR[[2]])
-	# Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
-	MCMC.diag(chainsCVR, cols=1:2) #cols refers to VCV matrix.
-	
-
-	# Read in model objects. LnRR
-		modSatlnRR <- readRDS("./output/modSatlnRR")
-		chainsRR <- MCMC.chains("./output/modSatlnRR")
-	# Explore chains separately
-		plot(modSatlnRR[[3]])
-	# Diagnostics on chains. Note 3 chains will be pooled for the autocorrelation and heidel diagnostics. 
-		MCMC.diag(chainsRR, cols=1:2) #cols refers to VCV matrix.
-
-# 5. Model averaging of "lnRR", "lnCVR", "lnVr". 
+# 4. Model averaging of "lnRR", "lnCVR", "lnVr". 
 #---------------------------------------------------------------------------------------------#
 
 	# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation); The script also saves each model to be used later
@@ -126,7 +63,7 @@
 			
 			# Run the models for lnRR
 			model.form<-paste(responses[1], Model.Fits[i,1], sep=" ~ ")
-			model<-MCMCglmm(as.formula(model.form), random = ~Article.ID + Consumer.Sp + Data.ID, data=data, ginverse=list(Data.ID = lnRR.AnivG), nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			model<-MCMCglmm(as.formula(model.form),  random = ~StudyNo + Map, ginverse = list(Map = AinvlnRR), data=data, nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
 			Model.Fits[i,2]<-model$DIC
 			
 			# Save the model with a names that corresponds to the model formula
@@ -135,9 +72,14 @@
 			
 			# Run the models for lnCVR
 			model.form<-paste(responses[2], Model.Fits[i,1], sep=" ~ ")
-			model<-MCMCglmm(as.formula(model.form), random = ~Article.ID + Consumer.Sp + Data.ID, data=data, ginverse=list(Data.ID = lnCVR.AnivG), nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = AnivGlnCVR), data = data, nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
 			Model.Fits[i,3]<-model$DIC
 			
+			# Run models for lnVR
+			model.form<-paste(responses[3], Model.Fits[i,1], sep=" ~ ")
+			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = AnivGlnVR), data = data, nitt=itts, burnin=burn, thin=thins, verbose=F, pr=T, prior=prior)
+			Model.Fits[i,4]<-model$DIC
+
 			# Save the model with a names that corresponds to the model formula
 			name<-paste(responses[2], Model.Fits[i,1], "Rdata", sep=".")
 			save(model, file=name)	
@@ -169,43 +111,107 @@
 	lnRR.Set<-lnRR.Set[order(lnRR.Set$lnRR.delta.DIC),]
 	lnCVR.Set<-lnCVR.Set[order(lnCVR.Set$lnCVR.delta.DIC),]
 
-# See the top model sets and the model weights
-lnRR.Set
-lnCVR.Set
+# 7. Processing and calculating model averages coefficients
+#---------------------------------------------------------------------------------------------#
+	# See the top model sets and the model weights
+	lnRR.Set
+	lnCVR.Set
 
-# Load the model set for lnRR using the function above and a vector of file names
-File.Names<-paste("lnRR", lnRR.Set$Model, sep=".")
-models<-loadModels(File.Names)
+	# Load the model set for lnRR using the function above and a vector of file names
+	File.Names<-paste("lnRR", lnRR.Set$Model, sep=".")
+	models<-loadModels(File.Names)
 
-# Create a table to hold the model averaged coefficients - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
-ma.coefs<-as.data.frame(array(NA, c(7, 4)))
-names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
-ma.coefs$Parameter<-row.names(summary(models[[which(lnRR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
+	# Create a table to hold the model averaged coefficients - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
+	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
+	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
+	ma.coefs$Parameter<-row.names(summary(models[[which(lnRR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
 
-# Do the model averaging using the function above
-for(i in 1:length(ma.coefs$Parameter)){
-ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnRR.Set$wi, models=models)
-}
+	# Do the model averaging using the function above
+	for(i in 1:length(ma.coefs$Parameter)){
+	ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnRR.Set$wi, models=models)
+	}
 
-# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
-ma.coefs
+	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
+	ma.coefs
 
-# Repeat for lnCVR
+	# Repeat for lnCVR
 
-# Load the model set for lnRR using the function above and a vector of file names
-File.Names<-paste("lnCVR", lnCVR.Set$Model, sep=".")
-models<-loadModels(File.Names)
+	# Load the model set for lnRR using the function above and a vector of file names
+	File.Names<-paste("lnCVR", lnCVR.Set$Model, sep=".")
+	models<-loadModels(File.Names)
 
-# Create a table to hold the model averaged coefficents - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
-ma.coefs<-as.data.frame(array(NA, c(7, 4)))
-names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
-ma.coefs$Parameter<-row.names(summary(models[[which(lnCVR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
+	# Create a table to hold the model averaged coefficents - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
+	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
+	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
+	ma.coefs$Parameter<-row.names(summary(models[[which(lnCVR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
 
-# Do the model averaging using the function above
-for(i in 1:length(ma.coefs$Parameter)){
-ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnCVR.Set$wi, models=models)
-}
+	# Do the model averaging using the function above
+	for(i in 1:length(ma.coefs$Parameter)){
+	ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnCVR.Set$wi, models=models)
+	}
 
-# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
-ma.coefs
+	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
+	ma.coefs
+
+# 8. Analysis with metafor
+#---------------------------------------------------------------------------------------------#
+# Analyse using REMA and MLMA in metafor
+        REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
+        MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
+
+        anova(REMA, MLMA)
+
+        summary(REMA)
+        summary(MLMA)
+
+
+    # Check some moderators
+
+    MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+    summary(MLMR)
+    
+    #model<-MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
+    #summary(model)
+
+    # 7. Analysis with lnSD
+#-------------------------------------------------------------------------------#
+
+    MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~1|StudyNo/EffectID, data=data.long)
+    summary(MLMR)
+
+    MLMR.Cor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~Trt|StudyNo/EffectID, data=data.long)
+    summary(MLMR)
+
+    prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=diag(2), nu=0.002, alpha.mu=c(0, 0), alpha.V=1000*diag(2))))
+    nitts<-1000000
+    burn<-500000
+    thins<-(nitts - burn) / 1000
+
+    #model<-MCMCglmm(lnSD ~ Trt + lnMean, random=~us(1 + Trt):StudyNo, mev=data.long$V.lnSD, data=data.long, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+
+    summary(model)
+
+    plot(model$VCV)
+
+    #################
+
+    par(mfrow=c(1,2))
+
+    plot(data$lnVR, 1/sqrt(data$V.lnVR))
+    plot(data$lnCVR, 1/sqrt(data$V.lnCVR))
+
+# Analyse using REMA and MLMA in metafor
+    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|Map, data=data)
+    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/Map, data=data)
+
+    anova(REMA, MLMA)
+
+    summary(REMA)
+    summary(MLMA)
+
+    MLMR<-rma.mv(yi = lnRR, V = VlnRR, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+    summary(MLMR)
+
+    # Results seem robust to d and lnRR
+
 
