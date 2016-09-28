@@ -39,6 +39,10 @@
 	    	Cov<-(CSD^2) / (CN * CMean^2)
 	    	return(Cov)
 	    }
+	
+	    # Function for quickly rounding a dataframe
+	
+
 	# A function to average one of the parameters in the model set using an equivalent of the zero method. The function takes a paramter name, a list of models for avergaing and a vector of weights for each model 
 	averageParameter<-function(parameter, weight, models){
 		val<-0
@@ -49,7 +53,6 @@
 		}
 		return(c(posterior.mode(val), HPDinterval(val)))
 	}	
-
 
 
 #### Created by D Noble @ UNSW 23/09/2016

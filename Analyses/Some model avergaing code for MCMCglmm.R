@@ -123,67 +123,73 @@
 	lnVR.Set
 
 	# Load the model set for lnRR using the function above and a vector of file names
-	File.Names<-paste0("./output/models/","lnRR.", lnRR.Set$Model)
-	models<-loadModels(File.Names)
+	File.NameslnRR<-paste0("./output/models/","lnRR.", lnRR.Set$Model)
+	modelslmRR<-loadModels(File.NameslnRR)
 
-	# Grab the unique parameters in the model set
-	#coefslnRR <- paste0(unique(unlist(strsplit(lnRR.Set$Model, split = " ")))[-match("+", unique(unlist(strsplit(lnRR.Set$Model, split = " "))))], collapse = " + ")
+	# Grab the unique parameters in the global model set. This can be used for all models. Anything not containing parameters should just be zero.
+	global <- paste0("./output/models/","lnRR.", Model.Fits[64, "Model"])
+	globalMod<-loadModels(global)
 
-	coefslnRR <- unique(unlist(strsplit(lnRR.Set$Model, split = " ")))[-match("+", unique(unlist(strsplit(lnRR.Set$Model, split = " "))))]
-
-	# Add these as row names
-	ma.coefslnRR<-as.data.frame(matrix(nrow = length(coefslnRR), ncol = 5))
+	# Create a table to hold the model averaged coefficients - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
+	ma.coefslnRR<-as.data.frame(array(NA, c(length(row.names(summary(globalMod[[1]])$solutions)), 4)))
 	names(ma.coefslnRR)<-c("Parameter", "Mode", "LCI", "UCI")
-	ma.coefslnRR$Parameter<-coefslnRR
+
+	# Add these as row names, quick solution to getting global estimates
+	ma.coefslnRR$Parameter<-row.names(summary(globalMod[[1]])$solutions)
 
 	# Do the model averaging using the function above
 	for(i in 1:length(ma.coefslnRR$Parameter)){
-	ma.coefslnRR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnRR$Parameter[i], weight=lnRR.Set$wi, models=models)
+		ma.coefslnRR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnRR$Parameter[i], weight=lnRR.Set$wi, models=modelslmRR)
 	}
 
 	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
-	ma.coefslnRR
+	ma.coefslnRR <- round_df(ma.coefslnRR, digits = 3)
 
 	# Repeat for lnCVR
 
 	# Load the model set for lnRR using the function above and a vector of file names
-	File.Names<-paste("lnCVR", lnCVR.Set$Model, sep=".")
-	models<-loadModels(File.Names)
+	File.NameslnCVR<-paste0("./output/models/","lnCVR.", lnCVR.Set$Model)
+	modelslnCVR<-loadModels(File.NameslnCVR)
 
-	# Create a table to hold the model averaged coefficents - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
-	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
-	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
+	ma.coefslnCVR<-as.data.frame(array(NA, c(length(row.names(summary(globalMod[[1]])$solutions)), 4)))
+	names(ma.coefslnCVR)<-c("Parameter", "Mode", "LCI", "UCI")
 
-	coefs <- paste0(unique(unlist(strsplit(lnCVR.Set$Model, split = " ")))[-match("+", unique(unlist(strsplit(lnCVR.Set$Model, split = " "))))], collapse = " + ")
-	ma.coefs$Parameter<-row.names(summary(models[[which(lnCVR.Set == coefs)]])$solutions)
+	# Add these as row names, quick solution to getting global estimates
+	ma.coefslnCVR$Parameter<-row.names(summary(globalMod[[1]])$solutions)
 
 	# Do the model averaging using the function above
-	for(i in 1:length(ma.coefs$Parameter)){
-	ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnCVR.Set$wi, models=models)
+	for(i in 1:length(ma.coefslnCVR$Parameter)){
+		ma.coefslnCVR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnCVR$Parameter[i], weight=lnCVR.Set$wi, models=modelslnCVR)
 	}
 
 	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
-	ma.coefs
-
+	ma.coefslnCVR <- round_df(ma.coefslnCVR, digits = 3)
 
 	# Repeat for lnVR
 
 	# Load the model set for lnRR using the function above and a vector of file names
-	File.Names<-paste("lnVR", lnVR.Set$Model, sep=".")
-	models<-loadModels(File.Names)
+	File.NameslnVR<-paste0("./output/models/","lnVR.", lnVR.Set$Model)
+	modelslnVR<-loadModels(File.NameslnVR)
 
 	# Create a table to hold the model averaged coefficents - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
-	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
-	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
-	ma.coefs$Parameter<-row.names(summary(models[[which(lnVR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
+	ma.coefslnVR<-as.data.frame(array(NA, c(length(row.names(summary(globalMod[[1]])$solutions)), 4)))
+	names(ma.coefslnVR)<-c("Parameter", "Mode", "LCI", "UCI")
+
+	# Add these as row names, quick solution to getting global estimates
+	ma.coefslnVR$Parameter<-row.names(summary(globalMod[[1]])$solutions)
 
 	# Do the model averaging using the function above
-	for(i in 1:length(ma.coefs$Parameter)){
-	ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnVR.Set$wi, models=models)
+	for(i in 1:length(ma.coefslnVR$Parameter)){
+		ma.coefslnVR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnVR$Parameter[i], weight=lnVR.Set$wi, models=modelslnVR)
 	}
 
 	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
-	ma.coefs
+	ma.coefslnVR <- round_df(ma.coefslnVR, digits = 3)
+
+	# cbind Tables together into a single one. 
+
+	modAvgTable <- cBind(ma.coefslnRR, ma.coefslnCVR[-1]), ma.coefslnVR)	
+
 # 8. Analysis with metafor
 #---------------------------------------------------------------------------------------------#
 # Analyse using REMA and MLMA in metafor
