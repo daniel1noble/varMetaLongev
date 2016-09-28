@@ -58,7 +58,6 @@
 #---------------------------------------------------------------------------------------------#
 
 	# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation); The script also saves each model to be used later
-	# NOTE: THIS WILL TAKE A LONG TIME
 	for(i in 1:length(Model.Fits[,1])){
 			
 			# Run the models for lnRR
@@ -68,21 +67,25 @@
 			
 			# Save the model with a names that corresponds to the model formula
 		 	name<-paste(responses[1], Model.Fits[i,1], "Rdata", sep=".")
-			save(model, file=name)
+			save(model, file=paste0("./output/models/", name))
 			
 			# Run the models for lnCVR
 			model.form<-paste(responses[2], Model.Fits[i,1], sep=" ~ ")
 			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = datObjects$AnivGlnCVR), data = datObjects$data, nitt=itts, burnin=burn, thin=thins, verbose=FALSE, pr=TRUE, prior=prior)
 			Model.Fits[i,3]<-model$DIC
 			
+			# Save the model with a names that corresponds to the model formula
+			name<-paste(responses[2], Model.Fits[i,1], "Rdata", sep=".")
+			save(model, file=paste0("./output/models/", name))
+
 			# Run models for lnVR
 			model.form<-paste(responses[3], Model.Fits[i,1], sep=" ~ ")
 			model<-MCMCglmm(as.formula(model.form), random = ~StudyNo + Map, ginverse = list(Map = datObjects$AnivGlnVR), data = datObjects$data, nitt=itts, burnin=burn, thin=thins, verbose=FALSE, pr=TRUE, prior=prior)
 			Model.Fits[i,4]<-model$DIC
 
 			# Save the model with a names that corresponds to the model formula
-			name<-paste(responses[2], Model.Fits[i,1], "Rdata", sep=".")
-			save(model, file=name)	
+			name<-paste(responses[3], Model.Fits[i,1], "Rdata", sep=".")
+			save(model, file=paste0("./output/models/", name))	
 			
 			# Print the progress of the script
 			print(i/length(Model.Fits[,1]) * 100)
@@ -90,49 +93,56 @@
 	}
 
 	# See the output
-	Model.Fits
+	Model.Fits <- readRDS("./output/Model.Fits")
 
 	# Calculate the delta DIC values (delta.DIC)
 	Model.Fits$lnRR.delta.DIC   <-Model.Fits$lnRR - min(Model.Fits$lnRR)
 	Model.Fits$lnCVR.delta.DIC<-Model.Fits$lnCVR - min(Model.Fits$lnCVR)
-	Model.Fits$lnVr.delta.DIC    <-Model.Fits$lnVr - min(Model.Fits$lnVr)
+	Model.Fits$lnVR.delta.DIC    <-Model.Fits$lnVR - min(Model.Fits$lnVR)
 
 	# Select models Based on DIC < 3
 	lnRR.Set   <-Model.Fits[which(Model.Fits$lnRR.delta.DIC < 3), c(1,2,5)]
 	lnCVR.Set<-Model.Fits[which(Model.Fits$lnCVR.delta.DIC < 3), c(1,3,6)]
-	lnVr.Set    <-Model.Fits[which(Model.Fits$lnVr.delta.DIC < 3), c(1,4,7)]
+	lnVR.Set    <-Model.Fits[which(Model.Fits$lnVR.delta.DIC < 3), c(1,4,7)]
 
 	# Calculate weights for top model set
 	lnRR.Set$wi   <-exp(-0.5 * lnRR.Set$lnRR.delta.DIC) / sum(exp(-0.5 * lnRR.Set$lnRR.delta.DIC))
 	lnCVR.Set$wi<-exp(-0.5 * lnCVR.Set$lnCVR.delta.DIC) / sum(exp(-0.5 * lnCVR.Set$lnCVR.delta.DIC))
-	lnVr.Set$wi    <-exp(-0.5 * lnVr.Set$lnVr.delta.DIC) / sum(exp(-0.5 * lnVr.Set$lnVr.delta.DIC))
+	lnVR.Set$wi    <-exp(-0.5 * lnVR.Set$lnVR.delta.DIC) / sum(exp(-0.5 * lnVR.Set$lnVR.delta.DIC))
 
 	# Sort model set based on DDIC
-	lnRR.Set<-lnRR.Set[order(lnRR.Set$lnRR.delta.DIC),]
+	lnRR.Set   <-lnRR.Set[order(lnRR.Set$lnRR.delta.DIC),]
 	lnCVR.Set<-lnCVR.Set[order(lnCVR.Set$lnCVR.delta.DIC),]
+	lnVR.Set   <-lnVR.Set[order(lnVR.Set$lnVR.delta.DIC),]
 
 # 7. Processing and calculating model averages coefficients
 #---------------------------------------------------------------------------------------------#
 	# See the top model sets and the model weights
 	lnRR.Set
 	lnCVR.Set
+	lnVR.Set
 
 	# Load the model set for lnRR using the function above and a vector of file names
-	File.Names<-paste("lnRR", lnRR.Set$Model, sep=".")
+	File.Names<-paste0("./output/models/","lnRR.", lnRR.Set$Model)
 	models<-loadModels(File.Names)
 
-	# Create a table to hold the model averaged coefficients - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
-	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
-	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
-	ma.coefs$Parameter<-row.names(summary(models[[which(lnRR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
+	# Grab the unique parameters in the model set
+	#coefslnRR <- paste0(unique(unlist(strsplit(lnRR.Set$Model, split = " ")))[-match("+", unique(unlist(strsplit(lnRR.Set$Model, split = " "))))], collapse = " + ")
+
+	coefslnRR <- unique(unlist(strsplit(lnRR.Set$Model, split = " ")))[-match("+", unique(unlist(strsplit(lnRR.Set$Model, split = " "))))]
+
+	# Add these as row names
+	ma.coefslnRR<-as.data.frame(matrix(nrow = length(coefslnRR), ncol = 5))
+	names(ma.coefslnRR)<-c("Parameter", "Mode", "LCI", "UCI")
+	ma.coefslnRR$Parameter<-coefslnRR
 
 	# Do the model averaging using the function above
-	for(i in 1:length(ma.coefs$Parameter)){
-	ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnRR.Set$wi, models=models)
+	for(i in 1:length(ma.coefslnRR$Parameter)){
+	ma.coefslnRR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnRR$Parameter[i], weight=lnRR.Set$wi, models=models)
 	}
 
 	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
-	ma.coefs
+	ma.coefslnRR
 
 	# Repeat for lnCVR
 
@@ -143,7 +153,9 @@
 	# Create a table to hold the model averaged coefficents - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
 	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
 	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
-	ma.coefs$Parameter<-row.names(summary(models[[which(lnCVR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
+
+	coefs <- paste0(unique(unlist(strsplit(lnCVR.Set$Model, split = " ")))[-match("+", unique(unlist(strsplit(lnCVR.Set$Model, split = " "))))], collapse = " + ")
+	ma.coefs$Parameter<-row.names(summary(models[[which(lnCVR.Set == coefs)]])$solutions)
 
 	# Do the model averaging using the function above
 	for(i in 1:length(ma.coefs$Parameter)){
@@ -153,6 +165,25 @@
 	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
 	ma.coefs
 
+
+	# Repeat for lnVR
+
+	# Load the model set for lnRR using the function above and a vector of file names
+	File.Names<-paste("lnVR", lnVR.Set$Model, sep=".")
+	models<-loadModels(File.Names)
+
+	# Create a table to hold the model averaged coefficents - take the coefficients names from the global model in the models list (if the global model did not come up, you will need to adjust this code) 
+	ma.coefs<-as.data.frame(array(NA, c(7, 4)))
+	names(ma.coefs)<-c("Parameter", "Mode", "LCI", "UCI")
+	ma.coefs$Parameter<-row.names(summary(models[[which(lnVR.Set == "Trait.Type + Habitat + Trophic.Level + Defence + Z.Mixed.Breadth")]])$solutions)
+
+	# Do the model averaging using the function above
+	for(i in 1:length(ma.coefs$Parameter)){
+	ma.coefs[i,c(2:4)]<-averageParameter(parameter = ma.coefs$Parameter[i], weight=lnVR.Set$wi, models=models)
+	}
+
+	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
+	ma.coefs
 # 8. Analysis with metafor
 #---------------------------------------------------------------------------------------------#
 # Analyse using REMA and MLMA in metafor

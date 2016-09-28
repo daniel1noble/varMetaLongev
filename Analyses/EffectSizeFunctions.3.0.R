@@ -400,3 +400,14 @@ sim.d.data<-function(control.mean, SD, treatment.mean, n, k = 50, control.SD = S
 	
 }
 
+###############
+
+# Function to get typical sampling variance by AM Senior @ the university of Sydney on the 26.sept.2016
+
+Calc.TMV<-function(Sampling.Variance){
+
+	MEV<-((sum(1/Sampling.Variance)) * (length(Sampling.Variance)-1)) / (((sum(1/Sampling.Variance))^2) - (sum((1/Sampling.Variance)^2)))
+
+return(MEV)
+
+}

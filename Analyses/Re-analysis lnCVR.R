@@ -194,7 +194,7 @@
 # 7. Save all relevant objects into a single list object for future use
 #--------------------------------------------------------------------------------------#
 
-    datObjects <- list(data = data, data.long = data.long, AnivGlnCVR=AnivGlnCVR, AnivGlnVR=AnivGlnVR, AinvlnRR=AinvlnRR)
+    datObjects <- list(data = data, data.long = data.long, AnivGlnCVR=AnivGlnCVR, AnivGlnVR=AnivGlnVR, AinvlnRR=AinvlnRR, VlnCVR = VlnCVR, VlnVR = VlnVR, VlnRR = VlnRR)
     saveRDS(datObjects, file = "./data/datObjects")
 
 # 8. Model parameters and priors. Test that they are sufficient
