@@ -198,6 +198,14 @@
 
 # 8. Generate unconditional estimates in each of the levels of the categorical predictors
 #------------------------------------------------------------------------------------------------------------
+	# Sample sizes for respective categories and their levels
+	nExptLifeStage <- table(datObjects$data$ExptLifeStage)
+	nManipType     <- table(datObjects$data$ManipType)
+	nCatchup           <- table(datObjects$data$CatchUp)
+	nSex                  <- table(datObjects$data$Sex)
+	nAdultDiet        <- table(datObjects$data$AdultDiet)
+	nPhyl                 <- table(datObjects$data$Phylum)
+
 	# lnRR
 	solPostlnRR <- matrix(nrow = 1000, ncol = length(ma.coefslnRR$Parameter))
 			for(i in 1:length(ma.coefslnRR$Parameter)){
@@ -219,6 +227,7 @@
 			posterior.mode(solPostlnCVR)
 
 	# lnVR
+	#------------------------------------------------------------------------------------------------------#
 		solPostlnVR <- matrix(nrow = 1000, ncol = length(ma.coefslnVR$Parameter))
 		for(i in 1:length(ma.coefslnVR$Parameter)){
 			solPostlnVR[,i] <-averageParamDist(parameter = ma.coefslnVR$Parameter[i], weight=lnVR.Set$wi, models=modelslnVR)
@@ -227,6 +236,63 @@
 
 		# Check that this gives the same results to Table 1
 		posterior.mode(solPostlnVR)
+
+		# Get unconditional estimates for Postnatal
+		
+	####### COMMENT FROM AL
+
+	# The first step is to get an unconditional estimate of post-natal out of the intercept, which is currently conditonal on AdultDietNonRestricted and non-vertebrates - I have done it with psuedo code 
+
+	Postnatal <- as.mcmc(solPostlnVR[, "(Intercept)"] + solPostlnVR[, "AdultDietR"] * (nAdultDiet[2] / sum(nAdultDiet)) + solPostlnVR[, "PhylumVertebrate"] * (nPhyl[2]/sum(nPhyl)))
+
+	# second step is easy, now we have unconditional estimate
+
+	Prenatal <- as.mcmc(Postnatal + solPostlnVR[, "ExptLifeStagePrenatal"])
+
+	PrePost <- rbind(cbind(posterior.mode(Postnatal), HPDinterval(Postnatal)), cbind(posterior.mode(Prenatal), HPDinterval(Prenatal)))
+	row.names(PrePost) <- c("Postnatal", "Prenatal")
+	
+	# A second example for Adult diet
+	AdultUnrestricted <- as.mcmc(solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] * (nExptLifeStage[2] / sum(nExptLifeStage)) + solPostlnVR[, "PhylumVertebrate"] * (nPhyl[2]/sum(nPhyl)))
+
+	# second step is easy, now we have unconditional estimate
+	AdultRestricted <- as.mcmc(AdultUnrestricted + solPostlnVR[, "AdultDietR"])
+
+	AdultDiet <- rbind(cbind(posterior.mode(AdultUnrestricted), HPDinterval(AdultUnrestricted)), cbind(posterior.mode(AdultRestricted), HPDinterval(AdultRestricted)))
+	row.names(AdultDiet) <- c("Unrestricted", "Restricted")
+	
+	# A second example for Adult diet
+	Invertebrate <- as.mcmc(solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] * (nExptLifeStage[2] / sum(nExptLifeStage)) + solPostlnVR[, "AdultDietR"] * (nAdultDiet[2] / sum(nAdultDiet)))
+
+	# second step is easy, now we have unconditional estimate
+	Vertebrate <- as.mcmc(Invertebrate + solPostlnVR[, "PhylumVertebrate"])
+
+	Phylum <- rbind(cbind(posterior.mode(Invertebrate), HPDinterval(Invertebrate)), cbind(posterior.mode(Vertebrate), HPDinterval(Vertebrate)))
+	row.names(Phylum) <- c("Invertebrate", "Vertebrate")
+
+
+	#########################
+
+
+
+
+		PostnatalAdultDiet <- solPostlnVR[, "(Intercept)"] * (nAdultDiet[1]/sum(nAdultDiet)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "AdultDietR"]) * (nAdultDiet[2]/sum(nAdultDiet))
+
+		PostnatalPhylum<- solPostlnVR[, "(Intercept)"] * (nPhyl[1]/sum(nPhyl)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "PhylumVertebrate"]) * (nPhyl[2]/sum(nPhyl))
+
+		       Postnatal <- PostnatalManip + PostnatalAdultDiet + PostnatalPhylum #This may be wrong
+		UnCPostnatal <- cbind(posterior.mode(as.mcmc(Postnatal)), HPDinterval(as.mcmc(Postnatal)))
+
+		# Get unconditional estimates for Prenatal
+		PrenatalManip <- (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"]) * (nManipType[1]/sum(nManipType)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] + solPostlnVR[, "ManipTypeQuantity"]) * (nManipType[2]/sum(nManipType))
+
+		PrenatalAdultDiet <- (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"]) * (nAdultDiet[1]/sum(nAdultDiet)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] + solPostlnVR[, "AdultDietR"]) * (nAdultDiet[2]/sum(nAdultDiet))
+
+		PrenatalPhylum<- (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"]) * (nPhyl[1]/sum(nPhyl)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] + solPostlnVR[, "PhylumVertebrate"]) * (nPhyl[2]/sum(nPhyl))
+
+		       Prenatal <- PrenatalManip + PrenatalAdultDiet + PrenatalPhylum # This has to be wrong
+		unCPrenatal <- cbind(posterior.mode(as.mcmc(Prenatal)), HPDinterval(as.mcmc(Prenatal)))
+
 
     # 9. Analysis with lnSD
 #-------------------------------------------------------------------------------#

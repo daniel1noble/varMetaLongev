@@ -50,7 +50,7 @@
 	    x
 	}
 
-	# A function to average one of the parameters in the model set using an equivalent of the zero method. The function takes a paramter name, a list of models for avergaing and a vector of weights for each model 
+	# A function to average one of the parameters in the model set using an equivalent of the zero method. The function takes a parameter name, a list of models for averaging and a vector of weights for each model 
 	averageParameter<-function(parameter, weight, models){
 		val<-0
 		for(i in 1:length(models)){
