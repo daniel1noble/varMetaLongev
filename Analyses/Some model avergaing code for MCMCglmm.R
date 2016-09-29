@@ -118,13 +118,18 @@
 # 7. Processing and calculating model averages coefficients
 #---------------------------------------------------------------------------------------------#
 	# See the top model sets and the model weights
-	lnRR.Set
-	lnCVR.Set
-	lnVR.Set
+	lnRR.Set    <- round_df(lnRR.Set, digits = 3)
+	lnCVR.Set <- round_df(lnCVR.Set, digits = 3)
+	lnVR.Set    <- round_df(lnVR.Set, digits = 3)
+
+	# Write these tables
+	write.csv(lnRR.Set, file = "./output/tables/lnRR.Set.csv")
+	write.csv(lnCVR.Set, file = "./output/tables/lnCVR.Set.csv")
+	write.csv(lnVR.Set, file = "./output/tables/lnVR.Set.csv")
 
 	# Load the model set for lnRR using the function above and a vector of file names
 	File.NameslnRR<-paste0("./output/models/","lnRR.", lnRR.Set$Model)
-	modelslmRR<-loadModels(File.NameslnRR)
+	modelslnRR<-loadModels(File.NameslnRR)
 
 	# Grab the unique parameters in the global model set. This can be used for all models. Anything not containing parameters should just be zero.
 	global <- paste0("./output/models/","lnRR.", Model.Fits[64, "Model"])
@@ -188,29 +193,42 @@
 
 	# cbind Tables together into a single one. 
 
-	modAvgTable <- cBind(ma.coefslnRR, ma.coefslnCVR[-1]), ma.coefslnVR)	
+	modAvgTable <- cBind(ma.coefslnRR, ma.coefslnCVR[-1], ma.coefslnVR[-1])	
+	write.csv(modAvgTable, file = "./output/tables/modAvgTable.csv", row.names = FALSE)
 
-# 8. Analysis with metafor
-#---------------------------------------------------------------------------------------------#
-# Analyse using REMA and MLMA in metafor
-        REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
-        MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
+# 8. Generate unconditional estimates in each of the levels of the categorical predictors
+#------------------------------------------------------------------------------------------------------------
+	# lnRR
+	solPostlnRR <- matrix(nrow = 1000, ncol = length(ma.coefslnRR$Parameter))
+			for(i in 1:length(ma.coefslnRR$Parameter)){
+				solPostlnRR[,i] <-averageParamDist(parameter = ma.coefslnRR$Parameter[i], weight=lnRR.Set$wi, models=modelslnRR)
+			}
+			colnames(solPostlnRR) <- ma.coefslnRR$Parameter
 
-        anova(REMA, MLMA)
+			# Check that this gives the same results to Table 1
+			posterior.mode(solPostlnRR)
 
-        summary(REMA)
-        summary(MLMA)
+	# lnCVR
+	solPostlnCVR <- matrix(nrow = 1000, ncol = length(ma.coefslnCVR$Parameter))
+			for(i in 1:length(ma.coefslnCVR$Parameter)){
+				solPostlnCVR[,i] <-averageParamDist(parameter = ma.coefslnCVR$Parameter[i], weight=lnCVR.Set$wi, models=modelslnCVR)
+			}
+			colnames(solPostlnCVR) <- ma.coefslnCVR$Parameter
 
+			# Check that this gives the same results to Table 1
+			posterior.mode(solPostlnCVR)
 
-    # Check some moderators
+	# lnVR
+		solPostlnVR <- matrix(nrow = 1000, ncol = length(ma.coefslnVR$Parameter))
+		for(i in 1:length(ma.coefslnVR$Parameter)){
+			solPostlnVR[,i] <-averageParamDist(parameter = ma.coefslnVR$Parameter[i], weight=lnVR.Set$wi, models=modelslnVR)
+		}
+		colnames(solPostlnVR) <- ma.coefslnVR$Parameter
 
-    MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-    summary(MLMR)
-    
-    #model<-MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
-    #summary(model)
+		# Check that this gives the same results to Table 1
+		posterior.mode(solPostlnVR)
 
-    # 7. Analysis with lnSD
+    # 9. Analysis with lnSD
 #-------------------------------------------------------------------------------#
 
     MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~1|StudyNo/EffectID, data=data.long)
@@ -237,18 +255,35 @@
     plot(data$lnVR, 1/sqrt(data$V.lnVR))
     plot(data$lnCVR, 1/sqrt(data$V.lnCVR))
 
-# Analyse using REMA and MLMA in metafor
-    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|Map, data=data)
-    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/Map, data=data)
+# 8. Analysis with metafor
+#---------------------------------------------------------------------------------------------#
+	# Analyse using REMA and MLMA in metafor
+	        REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
+	        MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
 
-    anova(REMA, MLMA)
+	        anova(REMA, MLMA)
 
-    summary(REMA)
-    summary(MLMA)
-
-    MLMR<-rma.mv(yi = lnRR, V = VlnRR, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-    summary(MLMR)
-
-    # Results seem robust to d and lnRR
+	        summary(REMA)
+	        summary(MLMA)
 
 
+	    # Check some moderators
+
+	    MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+	    summary(MLMR)
+	    
+	    #model<-MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
+	    #summary(model)
+		# Analyse using REMA and MLMA in metafor
+	    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|Map, data=data)
+	    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/Map, data=data)
+
+	    anova(REMA, MLMA)
+
+	    summary(REMA)
+	    summary(MLMA)
+
+	    MLMR<-rma.mv(yi = lnRR, V = VlnRR, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
+	    summary(MLMR)
+
+	    # Results seem robust to d and lnRR

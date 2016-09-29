@@ -7,7 +7,7 @@
 
 # The script was adapted on 29/04/2016, by Alistair Senior to include a function to simulate meta-analytic datasets for d-type (and lnRR/lnCVR) data.
 
-# Function to reload in models that will be averaged and return them in a list: these functions are available as loadable functions including comments in a more flexible format from the author
+	# Function to reload in models that will be averaged and return them in a list: these functions are available as loadable functions including comments in a more flexible format from the author
 	loadModels<-function(model.names){
 		
 	# Create a list for models
@@ -40,50 +40,74 @@
 	    	return(Cov)
 	    }
 	
-	    # Function for quickly rounding a dataframe
-	
+	# Function for quickly rounding a dataframe
+	round_df <- function(x, digits) {
+	    # round all numeric variables
+	    # x: data frame 
+	    # digits: number of digits to round
+	    numeric_columns <- sapply(x, class) == 'numeric'
+	    x[numeric_columns] <-  round(x[numeric_columns], digits)
+	    x
+	}
 
 	# A function to average one of the parameters in the model set using an equivalent of the zero method. The function takes a paramter name, a list of models for avergaing and a vector of weights for each model 
 	averageParameter<-function(parameter, weight, models){
 		val<-0
 		for(i in 1:length(models)){
-			if(is.na(models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)][1]) == F){
+			if(is.na(models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)][1]) == FALSE){
 			val<-val + models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)] * weight[i]
 			}
 		}
-		return(c(posterior.mode(val), HPDinterval(val)))
+		options(warn = -1)
+		if(val != 0){
+			return(c(posterior.mode(val), HPDinterval(val)))
+		}
+		if(val == 0){
+			return(rep(NA, length = 3))
+		}
 	}	
+
+	# A function for generating the model averages posterior distributions. Modified slightly from above
+	averageParamDist<-function(parameter, weight, models){
+			val = 0
+			for(i in 1:length(models)){
+				if(is.na(models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)][1]) == FALSE){
+				val<-val + models[[i]]$Sol[, which(row.names(summary(models[[i]])$solutions) == parameter)] * weight[i]
+				}
+			}
+			return(val)
+		}	
 
 
 #### Created by D Noble @ UNSW 23/09/2016
 #Load an MCMC model object of multiple chains. 
-MCMC.chains <- function(path, ginv = "EffectID"){
-    imp <- readRDS(path)
-	            #Import chains
-		 VCV.list <- mcmc.list(lapply(imp, function(x) x$VCV[, -which(ginv == colnames(x$VCV))]))
-		     Sol.list <- mcmc.list(lapply(imp, function(x) x$Sol))
-		         DIC <- plyr::ldply(lapply(imp, function(x) x$DIC))
-		#Combine chains
-		     VCV.mode <- MCMCglmm::posterior.mode(as.mcmc(plyr::ldply(VCV.list)))
-		      VCV.HPD <- coda::HPDinterval(as.mcmc(plyr::ldply(VCV.list)))
+	MCMC.chains <- function(path, ginv = "EffectID"){
+	    imp <- readRDS(path)
+		            #Import chains
+			 VCV.list <- mcmc.list(lapply(imp, function(x) x$VCV[, -which(ginv == colnames(x$VCV))]))
+			     Sol.list <- mcmc.list(lapply(imp, function(x) x$Sol))
+			         DIC <- plyr::ldply(lapply(imp, function(x) x$DIC))
+			#Combine chains
+			     VCV.mode <- MCMCglmm::posterior.mode(as.mcmc(plyr::ldply(VCV.list)))
+			      VCV.HPD <- coda::HPDinterval(as.mcmc(plyr::ldply(VCV.list)))
 
-		       Sol.mode <- MCMCglmm::posterior.mode(as.mcmc(plyr::ldply(Sol.list)))
-		      Sol.HPD <- coda::HPDinterval(as.mcmc(plyr::ldply(Sol.list)))
-		
-	return(list(solVCVlist = list(VCV = VCV.list, Sol = Sol.list ), solVCVchain = list(VCV = cbind(VCV.mode, VCV.HPD), Sol = cbind( Sol.mode, Sol.HPD)), DIC = DIC))
-}
+			       Sol.mode <- MCMCglmm::posterior.mode(as.mcmc(plyr::ldply(Sol.list)))
+			      Sol.HPD <- coda::HPDinterval(as.mcmc(plyr::ldply(Sol.list)))
+			
+		return(list(solVCVlist = list(VCV = VCV.list, Sol = Sol.list ), solVCVchain = list(VCV = cbind(VCV.mode, VCV.HPD), Sol = cbind( Sol.mode, Sol.HPD)), DIC = DIC))
+	}
 
 #### Created by D Noble @ UNSW 23/09/2016
 ## MCMC diagnostics function on a model object with 3 chains. 
-MCMC.diag <- function(MCMC.Chains, cols = c(1:3)){
-	gel.fixed <- gelman.diag(MCMC.Chains$solVCVlist$Sol)
-	gel.VCV <- gelman.diag(MCMC.Chains$solVCVlist$VCV[,cols])
-	autocor.fixed <- autocorr.diag(mcmc.list(MCMC.Chains$solVCVlist$Sol))
-	autocor.VCV <- autocorr.diag(mcmc.list(MCMC.Chains$solVCVlist$VCV))
-	heidel.fixed <- heidel.diag(mcmc.list(MCMC.Chains$solVCVlist$Sol))
-	heidel.VCV <- heidel.diag(mcmc.list(MCMC.Chains$solVCVlist$VCV)[,cols])
-  return(list(gel.fixed = gel.fixed, gel.VCV = gel.VCV, autocor.fixed = autocor.fixed, autocor.VCV= autocor.VCV, heidel.fixed = heidel.fixed, heidel.VCV= heidel.VCV))
-}
+	MCMC.diag <- function(MCMC.Chains, cols = c(1:3)){
+		gel.fixed <- gelman.diag(MCMC.Chains$solVCVlist$Sol)
+		gel.VCV <- gelman.diag(MCMC.Chains$solVCVlist$VCV[,cols])
+		autocor.fixed <- autocorr.diag(mcmc.list(MCMC.Chains$solVCVlist$Sol))
+		autocor.VCV <- autocorr.diag(mcmc.list(MCMC.Chains$solVCVlist$VCV))
+		heidel.fixed <- heidel.diag(mcmc.list(MCMC.Chains$solVCVlist$Sol))
+		heidel.VCV <- heidel.diag(mcmc.list(MCMC.Chains$solVCVlist$VCV)[,cols])
+	  return(list(gel.fixed = gel.fixed, gel.VCV = gel.VCV, autocor.fixed = autocor.fixed, autocor.VCV= autocor.VCV, heidel.fixed = heidel.fixed, heidel.VCV= heidel.VCV))
+	}
 
 
 #### Created by A M Senior @ The University of Otago 07/01/2014
