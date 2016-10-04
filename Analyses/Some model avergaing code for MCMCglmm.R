@@ -12,6 +12,9 @@
 	# Remove any old objects from the R environment
 	rm(list=ls())
 
+	# Load functions
+	source("./Analyses/EffectSizeFunctions.3.0.R")
+
 	# Load the packages
 	library("metafor")
 	library("MCMCglmm")
@@ -54,8 +57,11 @@
 	names(Model.Fits) <-c("Model", responses)
 	Model.Fits[,1]        <-models
 
+	# Write table 
+	write.csv(round_df(Model.Fits, digits = 3), "./output/tables/export/Model.Fits.csv")
+
 # 4. Model averaging of "lnRR", "lnCVR", "lnVr". 
-#---------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------#
 
 	# Run through the table running each model, extracting the DIC values and saving the model (these models can be reloaded for individual interpretation); The script also saves each model to be used later
 	for(i in 1:length(Model.Fits[,1])){
@@ -116,7 +122,7 @@
 	lnVR.Set   <-lnVR.Set[order(lnVR.Set$lnVR.delta.DIC),]
 
 # 7. Processing and calculating model averages coefficients
-#---------------------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------#
 	# See the top model sets and the model weights
 	lnRR.Set    <- round_df(lnRR.Set, digits = 3)
 	lnCVR.Set <- round_df(lnCVR.Set, digits = 3)
@@ -144,7 +150,7 @@
 
 	# Do the model averaging using the function above
 	for(i in 1:length(ma.coefslnRR$Parameter)){
-		ma.coefslnRR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnRR$Parameter[i], weight=lnRR.Set$wi, models=modelslmRR)
+		ma.coefslnRR[i,c(2:4)]<-averageParameter(parameter = ma.coefslnRR$Parameter[i], weight=lnRR.Set$wi, models=modelslnRR)
 	}
 
 	# Here are the model averaged paramters; note that these are averaged using a method equivalent to the 'zero' method of model averaging
@@ -196,8 +202,8 @@
 	modAvgTable <- cBind(ma.coefslnRR, ma.coefslnCVR[-1], ma.coefslnVR[-1])	
 	write.csv(modAvgTable, file = "./output/tables/modAvgTable.csv", row.names = FALSE)
 
-# 8. Generate unconditional estimates in each of the levels of the categorical predictors
-#------------------------------------------------------------------------------------------------------------
+# 8. Generate unconditional estimates for levels of the categorical predictors
+#--------------------------------------------------------------------------------------------#
 	# Sample sizes for respective categories and their levels
 	nExptLifeStage <- table(datObjects$data$ExptLifeStage)
 	nManipType     <- table(datObjects$data$ManipType)
@@ -206,6 +212,8 @@
 	nAdultDiet        <- table(datObjects$data$AdultDiet)
 	nPhyl                 <- table(datObjects$data$Phylum)
 
+	nVals <- c(dim(datObjects$data)[1], nExptLifeStage, nAdultDiet, nPhyl, nManipType, nSex, nCatchup)
+	
 	# lnRR
 	#---------------------------------------------------------------------------------------------------#
 		solPostlnRR <- matrix(nrow = 1000, ncol = length(ma.coefslnRR$Parameter))
@@ -233,7 +241,7 @@
 
 			PrenatalsolPostlnRR <- as.mcmc(PostnatalsolPostlnRR + solPostlnRR[, "ExptLifeStagePrenatal"])
 
-			PrePostsolPostlnRR <- rbind(cbind(posterior.mode(PostnatalsolPostlnRR), HPDinterval(PostnatalsolPostlnRR)), cbind(posterior.mode(PrenatalsolPostlnRR), HPDinterval(PrenatalsolPostlnRR)))
+			PrePostsolPostlnRR <- rbind(cbind(mean(PostnatalsolPostlnRR), HPDinterval(PostnatalsolPostlnRR)), cbind(mean(PrenatalsolPostlnRR), HPDinterval(PrenatalsolPostlnRR)))
 			row.names(PrePostsolPostlnRR) <- c("Postnatal", "Prenatal")
 
 		# Manipulation Type
@@ -252,7 +260,7 @@
 
 			ManipQuantitysolPostlnRR <- as.mcmc(ManipQualitysolPostlnRR + solPostlnRR[, "ManipTypeQuantity"])
 
-			ManipsolPostlnRR <- rbind(cbind(posterior.mode(ManipQualitysolPostlnRR), HPDinterval(ManipQualitysolPostlnRR)), cbind(posterior.mode(ManipQuantitysolPostlnRR), HPDinterval(ManipQuantitysolPostlnRR)))
+			ManipsolPostlnRR <- rbind(cbind(mean(ManipQualitysolPostlnRR), HPDinterval(ManipQualitysolPostlnRR)), cbind(mean(ManipQuantitysolPostlnRR), HPDinterval(ManipQuantitysolPostlnRR)))
 			row.names(ManipsolPostlnRR) <- c("Quality", "Quantity")
 
 		# Adult Diet
@@ -271,7 +279,7 @@
 
 			RestrictsolPostlnRR <- as.mcmc(AdUnrestrsolPostlnRR + solPostlnRR[, "AdultDietR"])
 
-			AdultDietsolPostlnRR <- rbind(cbind(posterior.mode(AdUnrestrsolPostlnRR), HPDinterval(AdUnrestrsolPostlnRR)), cbind(posterior.mode(RestrictsolPostlnRR), HPDinterval(RestrictsolPostlnRR)))
+			AdultDietsolPostlnRR <- rbind(cbind(mean(AdUnrestrsolPostlnRR), HPDinterval(AdUnrestrsolPostlnRR)), cbind(mean(RestrictsolPostlnRR), HPDinterval(RestrictsolPostlnRR)))
 			row.names(AdultDietsolPostlnRR) <- c("Unrestricted", "Restricted")
 	
 		# Catchup
@@ -289,7 +297,7 @@
 				Catchup2solPostlnRR <- Catchup1solPostlnRR + solPostlnRR[, "CatchUp2.No"] 
 				Catchup3solPostlnRR <- Catchup1solPostlnRR + solPostlnRR[, "CatchUp3.Yes"]
 			
-			CatchsolPostlnRR <- rbind(cbind(posterior.mode(Catchup1solPostlnRR), HPDinterval(Catchup1solPostlnRR)), cbind(posterior.mode(Catchup2solPostlnRR), HPDinterval(Catchup2solPostlnRR)), cbind(posterior.mode(Catchup3solPostlnRR), HPDinterval(Catchup3solPostlnRR)))
+			CatchsolPostlnRR <- rbind(cbind(mean(Catchup1solPostlnRR), HPDinterval(Catchup1solPostlnRR)), cbind(mean(Catchup2solPostlnRR), HPDinterval(Catchup2solPostlnRR)), cbind(mean(Catchup3solPostlnRR), HPDinterval(Catchup3solPostlnRR)))
 			row.names(CatchsolPostlnRR) <- c("Unknown", "No", "Yes")
 		
 		#Sex
@@ -307,7 +315,7 @@
 				SexMsolPostlnRR <- SexBothsolPostlnRR + solPostlnRR[, "SexM"] 
 				SexFsolPostlnRR <- SexBothsolPostlnRR + solPostlnRR[, "SexF"]
 			 
-			SexsolPostlnRR <- rbind(cbind(posterior.mode(SexBothsolPostlnRR), HPDinterval(SexBothsolPostlnRR)), cbind(posterior.mode(SexMsolPostlnRR), HPDinterval(SexMsolPostlnRR)), cbind(posterior.mode(SexFsolPostlnRR), HPDinterval(SexFsolPostlnRR)))
+			SexsolPostlnRR <- rbind(cbind(mean(SexBothsolPostlnRR), HPDinterval(SexBothsolPostlnRR)), cbind(mean(SexMsolPostlnRR), HPDinterval(SexMsolPostlnRR)), cbind(posterior.mode(SexFsolPostlnRR), HPDinterval(SexFsolPostlnRR)))
 			row.names(SexsolPostlnRR) <- c("Both", "Male", "Female")
 	
 		#Phylum
@@ -326,7 +334,7 @@
 
 			VertsolPostlnRR <- as.mcmc(InvertsolPostlnRR + solPostlnRR[, "PhylumVertebrate"])
 
-			PhylumsolPostlnRR <- rbind(cbind(posterior.mode(InvertsolPostlnRR), HPDinterval(InvertsolPostlnRR)), cbind(posterior.mode(VertsolPostlnRR), HPDinterval(VertsolPostlnRR)))
+			PhylumsolPostlnRR <- rbind(cbind(mean(InvertsolPostlnRR), HPDinterval(InvertsolPostlnRR)), cbind(mean(VertsolPostlnRR), HPDinterval(VertsolPostlnRR)))
 			row.names(PhylumsolPostlnRR) <- c("Invertebrate", "Vertebrate")	
 	# lnCVR
 	#---------------------------------------------------------------------------------------------------#
@@ -355,7 +363,7 @@
 
 			PrenatalCVR <- as.mcmc(PostnatalCVR + solPostlnCVR[, "ExptLifeStagePrenatal"])
 
-			PrePostCVR <- rbind(cbind(posterior.mode(PostnatalCVR), HPDinterval(PostnatalCVR)), cbind(posterior.mode(PrenatalCVR), HPDinterval(PrenatalCVR)))
+			PrePostCVR <- rbind(cbind(mean(PostnatalCVR), HPDinterval(PostnatalCVR)), cbind(mean(PrenatalCVR), HPDinterval(PrenatalCVR)))
 			row.names(PrePostCVR) <- c("Postnatal", "Prenatal")
 
 		# Manipulation Type
@@ -374,7 +382,7 @@
 
 			ManipQuantityCVR <- as.mcmc(ManipQualityCVR + solPostlnCVR[, "ManipTypeQuantity"])
 
-			ManipCVR <- rbind(cbind(posterior.mode(ManipQualityCVR), HPDinterval(ManipQualityCVR)), cbind(posterior.mode(ManipQuantityCVR), HPDinterval(ManipQuantityCVR)))
+			ManipCVR <- rbind(cbind(mean(ManipQualityCVR), HPDinterval(ManipQualityCVR)), cbind(mean(ManipQuantityCVR), HPDinterval(ManipQuantityCVR)))
 			row.names(ManipCVR) <- c("Quality", "Quantity")
 
 		# Adult Diet
@@ -393,7 +401,7 @@
 
 			RestrictCVR <- as.mcmc(AdUnrestrCVR + solPostlnCVR[, "AdultDietR"])
 
-			AdultDietCVR <- rbind(cbind(posterior.mode(AdUnrestrCVR), HPDinterval(AdUnrestrCVR)), cbind(posterior.mode(RestrictCVR), HPDinterval(RestrictCVR)))
+			AdultDietCVR <- rbind(cbind(mean(AdUnrestrCVR), HPDinterval(AdUnrestrCVR)), cbind(mean(RestrictCVR), HPDinterval(RestrictCVR)))
 			row.names(AdultDietCVR) <- c("Unrestricted", "Restricted")
 	
 		# Catchup
@@ -411,7 +419,7 @@
 				Catchup2CVR <- Catchup1CVR + solPostlnCVR[, "CatchUp2.No"] 
 				Catchup3CVR <- Catchup1CVR + solPostlnCVR[, "CatchUp3.Yes"]
 			
-			CatchCVR <- rbind(cbind(posterior.mode(Catchup1CVR), HPDinterval(Catchup1CVR)), cbind(posterior.mode(Catchup2CVR), HPDinterval(Catchup2CVR)), cbind(posterior.mode(Catchup3CVR), HPDinterval(Catchup3CVR)))
+			CatchCVR <- rbind(cbind(mean(Catchup1CVR), HPDinterval(Catchup1CVR)), cbind(mean(Catchup2CVR), HPDinterval(Catchup2CVR)), cbind(mean(Catchup3CVR), HPDinterval(Catchup3CVR)))
 			row.names(CatchCVR) <- c("Unknown", "No", "Yes")
 		
 		#Sex
@@ -429,7 +437,7 @@
 				SexMCVR <- SexBothCVR + solPostlnCVR[, "SexM"] 
 				SexFCVR <- SexBothCVR + solPostlnCVR[, "SexF"]
 			 
-			SexCVR <- rbind(cbind(posterior.mode(SexBothCVR), HPDinterval(SexBothCVR)), cbind(posterior.mode(SexMCVR), HPDinterval(SexMCVR)), cbind(posterior.mode(SexFCVR), HPDinterval(SexFCVR)))
+			SexCVR <- rbind(cbind(mean(SexBothCVR), HPDinterval(SexBothCVR)), cbind(mean(SexMCVR), HPDinterval(SexMCVR)), cbind(posterior.mode(SexFCVR), HPDinterval(SexFCVR)))
 			row.names(SexCVR) <- c("Both", "Male", "Female")
 	
 		#Phylum
@@ -448,7 +456,7 @@
 
 			VertCVR <- as.mcmc(InvertCVR + solPostlnCVR[, "PhylumVertebrate"])
 
-			PhylumCVR <- rbind(cbind(posterior.mode(InvertCVR), HPDinterval(InvertCVR)), cbind(posterior.mode(VertCVR), HPDinterval(VertCVR)))
+			PhylumCVR <- rbind(cbind(mean(InvertCVR), HPDinterval(InvertCVR)), cbind(mean(VertCVR), HPDinterval(VertCVR)))
 			row.names(PhylumCVR) <- c("Invertebrate", "Vertebrate")	
 	# lnVR
 	#---------------------------------------------------------------------------------------------------#
@@ -469,7 +477,7 @@
 
 		Prenatal <- as.mcmc(Postnatal + solPostlnVR[, "ExptLifeStagePrenatal"])
 
-		PrePost <- rbind(cbind(posterior.mode(Postnatal), HPDinterval(Postnatal)), cbind(posterior.mode(Prenatal), HPDinterval(Prenatal)))
+		PrePost <- rbind(cbind(mean(Postnatal), HPDinterval(Postnatal)), cbind(mean(Prenatal), HPDinterval(Prenatal)))
 		row.names(PrePost) <- c("Postnatal", "Prenatal")
 		
 		# A second example for Adult diet
@@ -478,7 +486,7 @@
 		# second step is easy, now we have unconditional estimate
 		AdultRestricted <- as.mcmc(AdultUnrestricted + solPostlnVR[, "AdultDietR"])
 
-		AdultDiet <- rbind(cbind(posterior.mode(AdultUnrestricted), HPDinterval(AdultUnrestricted)), cbind(posterior.mode(AdultRestricted), HPDinterval(AdultRestricted)))
+		AdultDiet <- rbind(cbind(mean(AdultUnrestricted), HPDinterval(AdultUnrestricted)), cbind(mean(AdultRestricted), HPDinterval(AdultRestricted)))
 		row.names(AdultDiet) <- c("Unrestricted", "Restricted")
 		
 		# A second example for Adult diet
@@ -487,89 +495,176 @@
 		# second step is easy, now we have unconditional estimate
 		Vertebrate <- as.mcmc(Invertebrate + solPostlnVR[, "PhylumVertebrate"])
 
-		Phylum <- rbind(cbind(posterior.mode(Invertebrate), HPDinterval(Invertebrate)), cbind(posterior.mode(Vertebrate), HPDinterval(Vertebrate)))
+		Phylum <- rbind(cbind(mean(Invertebrate), HPDinterval(Invertebrate)), cbind(mean(Vertebrate), HPDinterval(Vertebrate)))
 		row.names(Phylum) <- c("Invertebrate", "Vertebrate")
 
 
-		#########################
+	# Make table with estimates
+	lnRRCondEst <- rbind(CatchsolPostlnRR, SexsolPostlnRR, ManipsolPostlnRR, PhylumsolPostlnRR, AdultDietsolPostlnRR, PrePostsolPostlnRR)
 
 
+	lnCVRCondEst <- rbind(CatchCVR, SexCVR, ManipCVR, PhylumCVR, AdultDietCVR, PrePostCVR)
 
+	lnVRCondEst <- rbind(rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), Phylum, AdultDiet, PrePost)
 
-		PostnatalAdultDiet <- solPostlnVR[, "(Intercept)"] * (nAdultDiet[1]/sum(nAdultDiet)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "AdultDietR"]) * (nAdultDiet[2]/sum(nAdultDiet))
+	
 
-		PostnatalPhylum<- solPostlnVR[, "(Intercept)"] * (nPhyl[1]/sum(nPhyl)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "PhylumVertebrate"]) * (nPhyl[2]/sum(nPhyl))
+	#Overall 
+			load("./output/models/lnRR.1.Rdata")
+			TotlnRR <- cbind(as.numeric(mean(model$Sol[,"(Intercept)"])), HPDinterval(model$Sol[,"(Intercept)"]))
 
-		       Postnatal <- PostnatalManip + PostnatalAdultDiet + PostnatalPhylum #This may be wrong
-		UnCPostnatal <- cbind(posterior.mode(as.mcmc(Postnatal)), HPDinterval(as.mcmc(Postnatal)))
+			load("./output/models/lnCVR.1.Rdata")
+			TotlnCVR <- cbind(as.numeric(mean(model$Sol[,"(Intercept)"])), HPDinterval(model$Sol[,"(Intercept)"]))
 
-		# Get unconditional estimates for Prenatal
-		PrenatalManip <- (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"]) * (nManipType[1]/sum(nManipType)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] + solPostlnVR[, "ManipTypeQuantity"]) * (nManipType[2]/sum(nManipType))
+			load("./output/models/lnVR.1.Rdata")
+			TotalnVR <- cbind(as.numeric(mean(model$Sol[,"(Intercept)"])), HPDinterval(model$Sol[,"(Intercept)"]))
+			Overall <- cbind(TotlnRR, TotlnCVR, TotalnVR)
+	ESTTable <- round_df(cbind(lnRRCondEst, lnCVRCondEst, lnVRCondEst), digits = 3)
+	ESTTable <- round_df(rbind(ESTTable, Overall), digits = 3)
+	write.csv(ESTTable, "./output/tables/export/ESTTableFig1.csv")
+		
+# 10. Heterogeneity
+#--------------------------------------------------------------------------------------------#
+	#lnVR
+		load("./output/models/lnVR.1.Rdata")
+		modVR <- model
+		summary(modVR)
 
-		PrenatalAdultDiet <- (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"]) * (nAdultDiet[1]/sum(nAdultDiet)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] + solPostlnVR[, "AdultDietR"]) * (nAdultDiet[2]/sum(nAdultDiet))
+		#weights and sampling error variance
+		wi <- 1/datObjects$data$V.lnVR
+		w  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
 
-		PrenatalPhylum<- (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"]) * (nPhyl[1]/sum(nPhyl)) + (solPostlnVR[, "(Intercept)"] + solPostlnVR[, "ExptLifeStagePrenatal"] + solPostlnVR[, "PhylumVertebrate"]) * (nPhyl[2]/sum(nPhyl))
+		sty <- modVR$VCV[,"StudyNo"]
+		r    <- modVR$VCV[,"units"]
+		
+		#Total heterogeneity 
+		I2t      <-  (sty + r) / (sty + r + w)
+		totlnVr <- cbind(posterior.mode(I2t), HPDinterval(I2t))
 
-		       Prenatal <- PrenatalManip + PrenatalAdultDiet + PrenatalPhylum # This has to be wrong
-		unCPrenatal <- cbind(posterior.mode(as.mcmc(Prenatal)), HPDinterval(as.mcmc(Prenatal)))
+		#Study heterogeneity
+		I2stdy <-  sty / (sty + r + w)
+		StdylnVr <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
 
+	#lnCVR
+		load("./output/models/lnCVR.1.Rdata")
+		modCVR <- model
+		summary(modCVR)
 
-    # 9. Analysis with lnSD
+		#weights and sampling error variance
+		wi <- 1/datObjects$data$V.lnCVR
+		w  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
+
+		sty <- modCVR$VCV[,"StudyNo"]
+		r    <- modCVR$VCV[,"units"]
+		
+		#Total heterogeneity 
+		I2t      <-  (sty + r) / (sty + r + w)
+		totlnCVR <- cbind(posterior.mode(I2t), HPDinterval(I2t))
+
+		#Study heterogeneity
+		I2stdy <-  sty / (sty + r + w)
+		StdylnCVR <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
+	#lnRR
+		load("./output/models/lnRR.1.Rdata")
+		modRR <- model
+		summary(modRR)
+
+		#weights and sampling error variance
+		wi <- 1/datObjects$data$V.lnRR
+		w  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
+
+		sty <- modRR$VCV[,"StudyNo"]
+		r    <- modRR$VCV[,"units"]
+		
+		#Total heterogeneity 
+		I2t      <-  (sty + r) / (sty + r + w)
+		totlnRR <- cbind(posterior.mode(I2t), HPDinterval(I2t))
+
+		#Study heterogeneity
+		I2stdy <-  sty / (sty + r + w)
+		StdylnRR <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
+
+	# Table of heterogenetity 
+		HeterTable <- cbind(rbind(StdylnVr, totlnVr), rbind(StdylnCVR, totlnCVR), rbind(StdylnRR, totlnRR))
+		row.names(HeterTable) <- c("Study", "Total")
+		colnames(HeterTable) <- rep(c("Est.", "LCI", "UCI"), 3)
+
+		HeterTable <- round_df(HeterTable, digits = 3)
+		write.csv(HeterTable, "./output/tables/export/HeterTable.csv")
+
+# 11. Publication bias
+#--------------------------------------------------------------------------------------------#
+	#lnVR
+		load("./output/models/lnVR.1.Rdata")
+		modVR <- model
+		summary(modVR)
+		  res <- datObjects$data$lnVR - predict(modVR, marginal = ~Map)
+		prec <- 1/datObjects$data$V.lnVR
+		   W <- res*prec
+
+		#Egger regression
+		EggerVR <- lm(W ~ prec)
+		summary(EggerVR)   # Intercept just border line non-significant
+
+		# Trim and fill
+		modlnVR <- rma(yi = res, vi = datObjects$data$V.lnVR)
+		tflnVR      <- trimfill(modlnVR, estimator = "L0")
+		tflnVR.R      <- trimfill(modlnVR, estimator = "R0")
+
+	#lnCVR
+		load("./output/models/lnCVR.1.Rdata")
+		modCVR <- model
+		summary(modCVR)
+		  res <- datObjects$data$lnCVR - predict(modCVR, marginal = ~Map)
+		prec <- 1/datObjects$data$V.lnCVR
+		   W <- res*prec
+
+		#Egger regression
+		EggerCVR <- lm(W ~ prec)
+		summary(EggerCVR)   # Intercept non-significant
+
+		# Trim and fill
+		modlnCVR <- rma(yi = res, vi = datObjects$data$V.lnCVR)
+		tflnCVR      <- trimfill(modlnCVR)
+	
+	#lnRR
+		load("./output/models/lnRR.1.Rdata")
+		modRR <- model
+		summary(modRR)
+		  res <- datObjects$data$lnRR - predict(modRR, marginal = ~Map)
+		prec <- 1/datObjects$data$V.lnRR
+		   W <- res*prec
+
+		#Egger regression
+		EggerRR <- lm(W ~ prec)
+		summary(EggerRR)   # Intercept non-significant
+
+		# Trim and fill
+		modlnRR <- rma(yi = res, vi = datObjects$data$V.lnRR)
+		tflnRR      <- trimfill(modlnRR)
+
+# 12. Analysis with lnSD
 #-------------------------------------------------------------------------------#
-
-    MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~1|StudyNo/EffectID, data=data.long)
-    summary(MLMR)
-
-    MLMR.Cor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=~Trt|StudyNo/EffectID, data=data.long)
-    summary(MLMR)
-
     prior<-list(R=list(V=1, nu=0.002), G=list(G1=list(V=diag(2), nu=0.002, alpha.mu=c(0, 0), alpha.V=1000*diag(2))))
-    nitts<-1000000
-    burn<-500000
-    thins<-(nitts - burn) / 1000
+   	nitts  <-5000000
+	burn<-3000000
+	thins<-(itts - burn) / 1000
 
-    #model<-MCMCglmm(lnSD ~ Trt + lnMean, random=~us(1 + Trt):StudyNo, mev=data.long$V.lnSD, data=data.long, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
-
-    summary(model)
-
-    plot(model$VCV)
-
-    #################
-
-    par(mfrow=c(1,2))
-
-    plot(data$lnVR, 1/sqrt(data$V.lnVR))
-    plot(data$lnCVR, 1/sqrt(data$V.lnCVR))
-
-# 8. Analysis with metafor
-#---------------------------------------------------------------------------------------------#
-	# Analyse using REMA and MLMA in metafor
-	        REMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|EffectID, data=data)
-	        MLMA<-rma.mv(yi = lnVR, V = VlnVR, random=~1|StudyNo/EffectID, data=data)
-
-	        anova(REMA, MLMA)
-
-	        summary(REMA)
-	        summary(MLMA)
+    modellnSD<-MCMCglmm(lnSD ~ Trt + lnMean, random=~us(1 + Trt):StudyNo, mev=datObjects$data.long$V.lnSD, data=datObjects$data.long, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=F, pr=T)
+    summary(modellnSD)
 
 
-	    # Check some moderators
+	fe <- round_df(rbind(cbind(mean(modellnSD$Sol[,1]), HPDinterval(modellnSD$Sol[,1])), cbind(mean(modellnSD$Sol[,2]), HPDinterval(modellnSD$Sol[,2])), cbind(mean(modellnSD$Sol[,3]), HPDinterval(modellnSD$Sol[,3]))), digits = 3)
 
-	    MLMR<-rma.mv(yi = lnVR, V = V, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-	    summary(MLMR)
-	    
-	    #model<-MCMCglmm(lnVR ~ AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~StudyNo + Map, ginverse=list(Map = AnivGlnVR), data=data, prior=prior, nitt=nitts, burnin=burn, thin=thins, verbose=T, pr=T)
-	    #summary(model)
-		# Analyse using REMA and MLMA in metafor
-	    REMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|Map, data=data)
-	    MLMA<-rma.mv(yi = lnRR, V = VlnRR, random=~1|StudyNo/Map, data=data)
+	re <- round_df(cbind(posterior.mode(modellnSD$VCV), HPDinterval(modellnSD$VCV)), digits =3)
+   
+   write.csv(fe, "./output/tables/export/lnSDfe.csv")
+   write.csv(re, "./output/tables/export/lnSDre.csv")
 
-	    anova(REMA, MLMA)
+   # Some comparable models with metafor
 
-	    summary(REMA)
-	    summary(MLMA)
+    MLMR.Uncor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=list(~1|StudyNo, ~1|EffectID), data=datObjects$data.long)
+    summary(MLMR.Uncor)
 
-	    MLMR<-rma.mv(yi = lnRR, V = VlnRR, mods=~AdultDiet + ExptLifeStage + ManipType + Sex + CatchUp + Phylum, random=~1|StudyNo/EffectID, data=data)
-	    summary(MLMR)
-
-	    # Results seem robust to d and lnRR
+    MLMR.Cor<-rma.mv(yi=lnSD, V=V.lnSD, mods=~Trt + lnMean, random=list(~Trt|StudyNo), data=datObjects$data.long)
+    summary(MLMR.Cor)
