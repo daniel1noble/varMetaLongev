@@ -549,6 +549,7 @@
 		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality. Estimates need to be exponentiated.
 		prelnVR    <- exp(0.228 + 0.5*studyVarVR)
 		adultlnVR <- exp(0.285 + 0.5*studyVarVR)
+		ulnVR       <- exp(0.05 + 0.5*studyVarVR)
 
 	#lnCVR
 		load("./output/models/lnCVR.1.Rdata")
@@ -571,9 +572,10 @@
 		studyVarCVR <- posterior.mode(styCVR + rCVR) # Needed for Jensen's inequality
 		StdylnCVR <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
 
-		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality.Estimates need to be exponentiated.
-		prelnCVR   <- exp(0.404 + 0.5*studyVarCVR)
+		# Increase Prenatal (pre), adult restriction and overall. Estimates from Table S1. Accounts for Jensen's Inequality.Estimates need to be exponentiated.
+		prelnCVR    <- exp(0.404 + 0.5*studyVarCVR)
 		adultlnCVR <- exp(0.344 + 0.5*studyVarCVR)
+		ulnCVR       <- exp(0.09 + 0.5*studyVarCVR)
 	
 	#lnRR
 		load("./output/models/lnRR.1.Rdata")
@@ -598,6 +600,7 @@
 
 		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality.Estimates need to be exponentiated.
 		prelnRR   <- exp(-0.224 + 0.5*stdyVarRR)
+		ulnRR       <- exp(-0.034 + 0.5*studyVarRR)
 
 	# Table of heterogenetity 
 		HeterTable <- cbind(rbind(StdylnVr, totlnVr), rbind(StdylnCVR, totlnCVR), rbind(StdylnRR, totlnRR))
