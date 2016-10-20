@@ -532,18 +532,23 @@
 
 		#weights and sampling error variance
 		wi <- 1/datObjects$data$V.lnVR
-		w  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
+		wVR  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
 
-		sty <- modVR$VCV[,"StudyNo"]
-		r    <- modVR$VCV[,"units"]
+		styVR <- modVR$VCV[,"StudyNo"]
+		rVR   <- modVR$VCV[,"units"]
 		
 		#Total heterogeneity 
-		I2t      <-  (sty + r) / (sty + r + w)
+		I2t      <-  (styVR + rVR) / (styVR + rVR + wVR)
 		totlnVr <- cbind(posterior.mode(I2t), HPDinterval(I2t))
 
 		#Study heterogeneity
-		I2stdy <-  sty / (sty + r + w)
+		I2stdy <-  styVR / (styVR + rVR + wVR)
+		studyVarVR <- posterior.mode(styVR + rVR) # Needed for Jensen's inequality
 		StdylnVr <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
+
+		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality. Estimates need to be exponentiated.
+		prelnVR    <- exp(0.228 + 0.5*studyVarVR)
+		adultlnVR <- exp(0.285 + 0.5*studyVarVR)
 
 	#lnCVR
 		load("./output/models/lnCVR.1.Rdata")
@@ -552,37 +557,47 @@
 
 		#weights and sampling error variance
 		wi <- 1/datObjects$data$V.lnCVR
-		w  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
+		wCVR  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
 
-		sty <- modCVR$VCV[,"StudyNo"]
-		r    <- modCVR$VCV[,"units"]
+		styCVR <- modCVR$VCV[,"StudyNo"]
+		rCVR    <- modCVR$VCV[,"units"]
 		
 		#Total heterogeneity 
-		I2t      <-  (sty + r) / (sty + r + w)
+		I2t      <-  (styCVR + rCVR) / (styCVR + rCVR + wCVR)
 		totlnCVR <- cbind(posterior.mode(I2t), HPDinterval(I2t))
 
 		#Study heterogeneity
-		I2stdy <-  sty / (sty + r + w)
+		I2stdy <-  styCVR / (styCVR + rCVR + wCVR)
+		studyVarCVR <- posterior.mode(styCVR + rCVR) # Needed for Jensen's inequality
 		StdylnCVR <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
+
+		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality.Estimates need to be exponentiated.
+		prelnCVR   <- exp(0.404 + 0.5*studyVarCVR)
+		adultlnCVR <- exp(0.344 + 0.5*studyVarCVR)
+	
 	#lnRR
 		load("./output/models/lnRR.1.Rdata")
 		modRR <- model
 		summary(modRR)
 
 		#weights and sampling error variance
-		wi <- 1/datObjects$data$V.lnRR
-		w  <- sum((wi) * (length(wi) - 1))  / (((sum(wi)^2) - sum((wi)^2)))
+		wiRR <- 1/datObjects$data$V.lnRR
+		wRR  <- sum((wiRR) * (length(wiRR) - 1))  / (((sum(wiRR)^2) - sum((wiRR)^2)))
 
-		sty <- modRR$VCV[,"StudyNo"]
-		r    <- modRR$VCV[,"units"]
+		styRR <- modRR$VCV[,"StudyNo"]
+		rRR    <- modRR$VCV[,"units"]
 		
 		#Total heterogeneity 
-		I2t      <-  (sty + r) / (sty + r + w)
+		I2t      <-  (styRR + rRR) / (styRR + rRR + wRR)
 		totlnRR <- cbind(posterior.mode(I2t), HPDinterval(I2t))
 
 		#Study heterogeneity
-		I2stdy <-  sty / (sty + r + w)
+		I2stdy <-  styRR / (styRR + rRR + wRR)
 		StdylnRR <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
+		stdyVarRR <- posterior.mode(styRR + rRR) #Jensen's Inequality
+
+		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality.Estimates need to be exponentiated.
+		prelnRR   <- exp(-0.224 + 0.5*stdyVarRR)
 
 	# Table of heterogenetity 
 		HeterTable <- cbind(rbind(StdylnVr, totlnVr), rbind(StdylnCVR, totlnCVR), rbind(StdylnRR, totlnRR))

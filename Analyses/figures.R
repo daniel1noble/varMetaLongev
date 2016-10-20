@@ -20,7 +20,7 @@ pdf(height = 14, width = 14, file = "./output/figures/figure1.pdf")
 	    #legend
 	    points(x = c(2.5,2.5), y = c(5.8, 6.2), col = c("red", "black"), cex = 1.8)
 	    text(c("Control", "Diet Restriction"), x = c(2.8,2.8), y = c(5.78, 6.15), adj = c(0,0), cex = 1.2)
-	    mtext(side = 2, "A)", adj = 3, las = 1, padj = -10.5, font = 2, cex = 2)
+	    mtext(side = 2, text = "(a)", adj = 3, las = 1, padj = -10.5, font = 3, cex = 2)
 
 	    par(bty = "n", mar = c(5,12,3,1))
 		cex = 1.8
@@ -61,7 +61,7 @@ pdf(height = 14, width = 14, file = "./output/figures/figure1.pdf")
 		
 		#labels
 		mtext(side  = 2, c("Overall", "Early Diet", "Adult Diet", "Phylum"), at = c(0, 2.8, 5.8, 8.8), las = 1, font = 2)
-		mtext(side = 2, "B)", adj = 4, las = 1, padj = -10.5, font = 2, cex = 2)
+		mtext(side = 2, "(b)", adj = 4, las = 1, padj = -10.5, font = 3, cex = 2)
 	
 	#ln CVR
 		plot(~lnCVR, type = "n", data = datObjects$data, ylim = c(0,26), bty = "n", xlab = "lnCVR", cex.lab = 1.5, cex.axis = 1.2, xlim = c(-0.2, 0.7))
@@ -114,7 +114,7 @@ pdf(height = 14, width = 14, file = "./output/figures/figure1.pdf")
 			
 			#labels
 			mtext(side  = 2, c("Overall", "Early Diet", "Adult Diet", "Phylum", "Manipulation Type", "Sex", "Catchup Growth"), at = c(0, 4, 8, 12, 16, 21, 26)+0.2, las = 1, font = 2)
-			mtext(side = 2, "C)", adj = 5, las = 1, padj = -10.5, font = 2, cex = 2)
+			mtext(side = 2, "(c)", adj = 5, las = 1, padj = -10.5, font = 3, cex = 2)
 
 			#N
 			text(nVals, x = 0.55, y = c(0,2,3,6,7,10,11,14,15,18,19,20,23,24,25), cex = 1.5)
@@ -171,7 +171,7 @@ pdf(height = 14, width = 14, file = "./output/figures/figure1.pdf")
 			
 			#labels
 			mtext(side  = 2, c("Overall", "Early Diet", "Adult Diet", "Phylum", "Manipulation Type", "Sex", "Catchup Growth"), at = c(0, 4, 8, 12, 16, 21, 26) + 0.2, las = 1, font = 2)
-			mtext(side = 2, "D)", adj =5, las = 1, padj = -10.5, font = 2, cex = 2)
+			mtext(side = 2, "(d)", adj =5, las = 1, padj = -10.5, font = 3, cex = 2)
 
 			#N
 			text(nVals, x = 0.25, y = c(0,2,3,6,7,10,11,14,15,18,19,20,23,24,25), cex = 1.5)
