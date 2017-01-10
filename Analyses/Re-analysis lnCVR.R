@@ -18,7 +18,7 @@
     source("./Analyses/EffectSizeFunctions.3.0.R")
 
     # Load data. Working directory assumed to be the project folder main directory.
-    data<-read.csv("./data/Clean_Data.csv")
+    data<-read.csv("./data/Clean_Data_AS.csv")
     head(data)
 
     # Define variables
