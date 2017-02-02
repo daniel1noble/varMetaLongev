@@ -596,14 +596,14 @@
 		#Study heterogeneity
 		I2stdy <-  styRR / (styRR + rRR + wRR)
 		StdylnRR <- cbind(posterior.mode(I2stdy), HPDinterval(I2stdy))
-		stdyVarRR <- posterior.mode(styRR + rRR) #Jensen's Inequality
+		stdyVarRR <- posterior.mode(styRR + rRR) 
 
 		# Increase Prenatal (pre) and adult restriction. Estimates from Table S1. Accounts for Jensen's Inequality.Estimates need to be exponentiated.
 		prelnRR   <- exp(-0.224 + 0.5*stdyVarRR)
 		ulnRR       <- exp(-0.034 + 0.5*studyVarRR)
 
 	# Table of heterogenetity 
-		HeterTable <- cbind(rbind(StdylnVr, totlnVr), rbind(StdylnCVR, totlnCVR), rbind(StdylnRR, totlnRR))
+		HeterTable <- cbind(rbind(StdylnRR, totlnRR), rbind(StdylnCVR, totlnCVR), rbind(StdylnVr, totlnVr))
 		row.names(HeterTable) <- c("Study", "Total")
 		colnames(HeterTable) <- rep(c("Est.", "LCI", "UCI"), 3)
 
